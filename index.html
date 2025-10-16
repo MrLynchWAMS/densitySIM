@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Density Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+            overflow: hidden; /* Prevent scrolling on mobile */
+        }
+        .grab { cursor: grab; }
+        .grabbing { 
+            cursor: grabbing;
+            z-index: 1000; /* Ensure dragged item is on top */
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .beaker {
+            width: 150px;
+            height: 300px;
+            border: 4px solid #9ca3af;
+            border-top: none;
+            border-radius: 0 0 20px 20px;
+            position: relative;
+            background-color: #f0f9ff;
+            overflow: hidden;
+        }
+        .water {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #7dd3fc;
+            opacity: 0.7;
+            transition: height 0.3s ease-out, background-color 0.3s ease;
+        }
+        .water.overflow {
+            background-color: #fb7185; /* Red tint for overflow */
+        }
+        .water-surface {
+            position: absolute;
+            top: 0;
+            left: -2%;
+            right: -2%;
+            height: 10px;
+            background-color: #38bdf8;
+            border-radius: 50%;
+            opacity: 0.8;
+            transition: background-color 0.3s ease;
+        }
+        .water.overflow .water-surface {
+             background-color: #f43f5e;
+        }
+        .beaker-markings {
+            position: absolute;
+            top: 0;
+            right: 5px;
+            bottom: 0;
+            width: 20px;
+            display: flex;
+            flex-direction: column-reverse;
+            justify-content: flex-start;
+        }
+        .beaker-markings span {
+            font-size: 10px;
+            color: #4b5563;
+            height: 30px; /* 50mL marking */
+            border-top: 1px solid #6b7280;
+            text-align: right;
+            position: relative;
+        }
+         .beaker-markings span::before {
+            content: attr(data-label);
+            position: absolute;
+            right: 15px;
+            top: -8px;
+        }
+        .lab-object {
+            /* Position is controlled by JS when in labArea */
+            transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .object-shelf {
+            background-color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            min-height: 80px;
+            border: 2px dashed transparent;
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+        }
+        .object-shelf.drop-active {
+            background-color: #e0f2fe;
+            border-color: #38bdf8;
+        }
+        .object-shelf .lab-object {
+            position: relative; /* In shelf, it's part of the flow */
+            display: inline-flex;
+            margin: 8px;
+        }
+        /* Vertical Slider */
+        input[type=range][orient=vertical] {
+            writing-mode: bt-lr; /* IE */
+            -webkit-appearance: slider-vertical; /* WebKit */
+            width: 8px;
+            height: 175px;
+            padding: 0 5px;
+        }
+        [contenteditable] {
+            outline: 2px dashed transparent;
+            transition: outline-color 0.2s;
+            border-radius: 2px;
+        }
+        [contenteditable]:focus {
+            outline-color: #38bdf8;
+            background-color: #f0f8ff;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased">
+
+    <div id="simulation-container" class="container mx-auto p-4 md:p-8 h-screen flex flex-col">
+        <header class="text-center mb-4">
+            <h1 class="text-4xl font-bold text-slate-900">Interactive Density Lab</h1>
+            <p class="text-lg text-slate-600 mt-2">Measure, calculate, and discover the density of various materials!</p>
+        </header>
+
+        <div class="flex-grow grid grid-cols-1 lg:grid-cols-[1.5fr_3fr_1.5fr] gap-8 min-h-0">
+            <!-- Left Panel: Objects -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2">Materials</h2>
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Known Materials</h3>
+                        <div id="known-object-container" class="object-shelf"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Mystery Objects</h3>
+                        <div id="mystery-object-container" class="object-shelf"></div>
+                    </div>
+                </div>
+                 <button id="reset-btn" class="mt-auto w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">Reset Simulation</button>
+            </div>
+
+            <!-- Center Panel: Simulation -->
+            <div id="lab-area" class="bg-white p-6 rounded-2xl shadow-lg relative flex flex-col justify-between h-full">
+                 <div id="overflow-warning" class="absolute top-2 right-2 text-red-600 font-bold bg-white/80 p-2 rounded hidden z-20">OVERFLOW! Measurement invalid.</div>
+            </div>
+             
+            <!-- Right Panel: Results Tables -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg overflow-y-auto">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2">Results & Tools</h2>
+                 <div class="space-y-6">
+                    <div>
+                        <h3 class="font-semibold mb-2">Known Materials</h3>
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-xs text-slate-600 uppercase bg-slate-50">
+                                <tr><th class="p-2">Material</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th></tr>
+                            </thead>
+                            <tbody id="known-results-body"></tbody>
+                        </table>
+                    </div>
+                     <div>
+                        <h3 class="font-semibold mb-2">Mystery Objects</h3>
+                        <table class="w-full text-left text-sm">
+                           <thead class="text-xs text-slate-600 uppercase bg-slate-50">
+                                <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th></tr>
+                            </thead>
+                            <tbody id="mystery-results-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const ALL_OBJECTS_DATA = [
+        { id: 'Gold', name: 'Gold', mass: 96.5, volume: 5.0, color: 'bg-yellow-400', shape: 'rounded-sm', size: 'w-8 h-8', isMystery: false },
+        { id: 'Lead', name: 'Lead', mass: 113.4, volume: 10.0, color: 'bg-gray-600', shape: 'rounded-lg', size: 'w-10 h-10', isMystery: false },
+        { id: 'Alum', name: 'Aluminum', mass: 27.0, volume: 10.0, color: 'bg-slate-300', shape: 'rounded-md', size: 'w-12 h-8', isMystery: false },
+        { id: 'Wood', name: 'Oak Wood', mass: 7.5, volume: 10.0, color: 'bg-amber-600', shape: 'rounded-xl', size: 'w-14 h-6', isMystery: false },
+        { id: 'Ice', name: 'Ice', mass: 9.2, volume: 10.0, color: 'bg-cyan-200', shape: 'rounded-full', size: 'w-10 h-10', isMystery: false },
+        { id: 'A', name: 'A', mass: 54.0, volume: 20.0, color: 'bg-slate-400', shape: 'rounded-lg', size: 'w-12 h-12', isMystery: true },
+        { id: 'B', name: 'B', mass: 15.0, volume: 20.0, color: 'bg-amber-700', shape: 'rounded-md', size: 'w-16 h-8', isMystery: true },
+        { id: 'C', name: 'C', mass: 482.5, volume: 25.0, color: 'bg-yellow-500', shape: 'rounded-full', size: 'w-14 h-14', isMystery: true },
+    ];
+
+    const labArea = document.getElementById('lab-area');
+    const knownObjectContainer = document.getElementById('known-object-container');
+    const mysteryObjectContainer = document.getElementById('mystery-object-container');
+    const knownResultsBody = document.getElementById('known-results-body');
+    const mysteryResultsBody = document.getElementById('mystery-results-body');
+    const resetBtn = document.getElementById('reset-btn');
+    const overflowWarning = document.getElementById('overflow-warning');
+
+    let objects = [];
+    let draggedObject = null;
+    let liquidDensity = 1.0;
+    let initialWaterLevel = 100;
+    const beakerCapacity = 300;
+    const waterHeightPerML = 300 / beakerCapacity;
+    const gravity = 0.5; // Represents acceleration per frame
+    const waterDrag = 0.95; // More gradual drag
+
+    let scaleEl, beakerEl, waterEl, liquidDensitySlider, initialWaterSlider;
+
+    function createLabLayout() {
+        labArea.innerHTML = '';
+        
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'flex-shrink-0 flex flex-col items-center p-2';
+        const liquidDensityLabel = createLabElement('liquid-density-label', 'Liquid Density: <span id="liquid-density-value">1.00</span> g/mL', 'block text-center font-semibold mb-2 w-64');
+        liquidDensitySlider = createLabElement('liquid-density-slider', '', 'w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer', 'input');
+        Object.assign(liquidDensitySlider, { type: 'range', min: 0.5, max: 2.0, value: 1.0, step: 0.01 });
+        controlsContainer.append(liquidDensityLabel, liquidDensitySlider);
+
+        const floorContainer = document.createElement('div');
+        floorContainer.className = 'flex-grow flex justify-around items-end pb-4';
+
+        const scaleWrapper = document.createElement('div');
+        scaleWrapper.className = 'flex flex-col items-center';
+        scaleEl = createLabElement('scale', 
+            `<div class="absolute bottom-0 w-full h-8 bg-gray-600 rounded-b-lg"></div>
+             <div class="absolute bottom-8 w-5/6 h-12 bg-gray-500 -skew-x-12 left-0 rounded-tl-md"></div>
+             <div class="absolute bottom-8 w-5/6 h-12 bg-gray-500 skew-x-12 right-0 rounded-tr-md"></div>
+             <div id="scale-readout" class="absolute bottom-9 bg-gray-800 text-cyan-300 font-mono text-3xl w-40 h-12 flex items-center justify-center rounded-lg shadow-inner">0.00</div>
+             <div id="scale-platform" class="absolute top-0 w-44 h-4 bg-gray-400 rounded-t-md border-b-2 border-gray-500"></div>`,
+            'relative w-56 h-24');
+        scaleWrapper.append(scaleEl);
+
+        const beakerWrapper = document.createElement('div');
+        beakerWrapper.className = 'flex items-end gap-4';
+        const beakerAndSlider = document.createElement('div');
+        beakerAndSlider.className = 'flex items-end gap-2';
+        initialWaterSlider = createLabElement('initial-water-slider', '', 'h-48', 'input');
+        Object.assign(initialWaterSlider, { type: 'range', min: 50, max: 200, value: 100, step: 1 });
+        initialWaterSlider.setAttribute('orient', 'vertical');
+        beakerEl = createLabElement('beaker', '<div id="water" class="water"><div class="water-surface"></div></div><div class="beaker-markings"><span data-label="50"></span><span data-label="100"></span><span data-label="150"></span><span data-label="200"></span><span data-label="250"></span></div>', 'beaker');
+        waterEl = beakerEl.querySelector('#water');
+        const volumeReadoutEl = createLabElement('volume-readout-bg', '<span id="volume-readout">100.0</span> mL', 'bg-gray-800 text-white font-mono text-2xl p-3 rounded-lg text-center shadow-md mb-4');
+        beakerAndSlider.append(initialWaterSlider, beakerEl);
+        beakerWrapper.append(beakerAndSlider, volumeReadoutEl);
+
+        floorContainer.append(scaleWrapper, beakerWrapper);
+        labArea.append(controlsContainer, floorContainer, overflowWarning);
+    }
+    
+    function init() {
+        createLabLayout();
+        objects = [];
+        knownObjectContainer.innerHTML = '';
+        mysteryObjectContainer.innerHTML = '';
+        knownResultsBody.innerHTML = '';
+        mysteryResultsBody.innerHTML = '';
+
+        ALL_OBJECTS_DATA.forEach((objData) => {
+            const objEl = createLabElement(`obj-${objData.id}`, `<span class="font-bold text-lg text-slate-800 pointer-events-none">${objData.isMystery ? objData.name : `<span class="text-xs">${objData.name}</span>`}</span>`, `lab-object grab shadow-md ${objData.color} ${objData.shape} ${objData.size}`);
+            const container = objData.isMystery ? mysteryObjectContainer : knownObjectContainer;
+            container.appendChild(objEl);
+            
+            objects.push({
+                el: objEl, data: objData, x: 0, y: 0, vx: 0, vy: 0,
+                isDragging: false, isOnScale: false, isInBeaker: false, isInLab: false,
+            });
+            
+            const tableRow = createLabElement(`row-${objData.id}`, 
+                `<td class="p-2 font-bold">${objData.name}</td>
+                 <td class="p-2" contenteditable="true" data-col="mass"></td>
+                 <td class="p-2" contenteditable="true" data-col="volume"></td>
+                 <td class="p-2" contenteditable="true" data-col="density"></td>`, 'border-b', 'tr');
+            (objData.isMystery ? mysteryResultsBody : knownResultsBody).appendChild(tableRow);
+        });
+        
+        liquidDensity = 1.0;
+        initialWaterLevel = 100;
+        updateWaterLevel();
+        document.getElementById('scale-readout').textContent = '0.00';
+        addEventListeners();
+        loadTableData();
+    }
+    
+    function addEventListeners() {
+        document.addEventListener('mousedown', startDrag);
+        document.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        liquidDensitySlider.addEventListener('input', (e) => {
+            liquidDensity = parseFloat(e.target.value);
+            document.getElementById('liquid-density-value').textContent = liquidDensity.toFixed(2);
+        });
+        initialWaterSlider.addEventListener('input', (e) => {
+            initialWaterLevel = parseFloat(e.target.value);
+            if (!objects.some(o => o.isInBeaker)) {
+                updateWaterLevel();
+            }
+        });
+        resetBtn.addEventListener('click', () => {
+             if(window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
+             localStorage.removeItem('densityLabData');
+             init();
+             gameLoop();
+        });
+
+        knownResultsBody.addEventListener('input', saveTableData);
+        mysteryResultsBody.addEventListener('input', saveTableData);
+    }
+
+    function startDrag(e) {
+        if (e.target.classList.contains('lab-object')) {
+            e.preventDefault();
+            draggedObject = objects.find(o => o.el === e.target);
+            if (!draggedObject) return;
+
+            draggedObject.isDragging = true;
+            draggedObject.el.classList.add('grabbing');
+            
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            const labRect = labArea.getBoundingClientRect();
+
+            if (!draggedObject.isInLab) {
+                draggedObject.isInLab = true;
+                const rect = draggedObject.el.getBoundingClientRect();
+                labArea.appendChild(draggedObject.el);
+                draggedObject.el.style.position = 'absolute';
+                draggedObject.x = rect.left - labRect.left;
+                draggedObject.y = rect.top - labRect.top;
+            }
+            
+            draggedObject.offsetX = clientX - (labRect.left + draggedObject.x);
+            draggedObject.offsetY = clientY - (labRect.top + draggedObject.y);
+            draggedObject.vx = 0;
+            draggedObject.vy = 0;
+        }
+    }
+
+    function drag(e) {
+        if (draggedObject) {
+            e.preventDefault();
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            const labRect = labArea.getBoundingClientRect();
+            draggedObject.x = clientX - labRect.left - draggedObject.offsetX;
+            draggedObject.y = clientY - labRect.top - draggedObject.offsetY;
+        }
+    }
+    
+    function endDrag(e) {
+        if (!draggedObject) return;
+
+        const objRect = draggedObject.el.getBoundingClientRect();
+        [knownObjectContainer, mysteryObjectContainer].forEach(container => {
+            const containerRect = container.getBoundingClientRect();
+            const isOver = !(objRect.right < containerRect.left || objRect.left > containerRect.right || objRect.bottom < containerRect.top || objRect.top > containerRect.bottom);
+            const isMysteryShelf = container.id === 'mystery-object-container';
+            if (isOver && draggedObject.data.isMystery === isMysteryShelf) {
+                draggedObject.isInLab = false;
+                draggedObject.el.removeAttribute('style');
+                container.appendChild(draggedObject.el);
+            }
+        });
+
+        draggedObject.el.classList.remove('grabbing');
+        draggedObject.isDragging = false;
+        draggedObject = null;
+    }
+    
+    function gameLoop() {
+        const labRect = labArea.getBoundingClientRect();
+        let objectInBeaker = null;
+        let totalDisplacedVolume = 0;
+
+        objects.forEach(obj => {
+            if (!obj.isInLab) return;
+            if (!obj.isDragging) {
+                obj.isOnScale = false; // Reset scale state each frame, collision will set it to true
+            }
+
+            if (obj.isDragging) {
+                 const beakerRect = beakerEl.getBoundingClientRect();
+                 const objRect = obj.el.getBoundingClientRect();
+                 obj.isInBeaker = objRect.left < beakerRect.right && objRect.right > beakerRect.left && objRect.bottom > beakerRect.top;
+            } else {
+                const scalePlatform = document.getElementById('scale-platform');
+                handleScaleCollision(obj, scalePlatform.getBoundingClientRect(), labRect);
+                
+                if (obj.isInBeaker || isOverBeaker(obj)) {
+                    handleBeakerPhysics(obj, beakerEl.getBoundingClientRect(), labRect);
+                }
+                
+                if (!obj.isInBeaker) {
+                    obj.vy += gravity;
+                }
+                
+                obj.x += obj.vx;
+                obj.y += obj.vy;
+                
+                handleBoundaries(obj, labRect);
+            }
+            
+            if(obj.isInBeaker) objectInBeaker = obj;
+
+            obj.el.style.left = `${obj.x}px`;
+            obj.el.style.top = `${obj.y}px`;
+        });
+        
+        if(objectInBeaker) {
+            const obj = objectInBeaker;
+            const objRect = obj.el.getBoundingClientRect();
+            const beakerRect = beakerEl.getBoundingClientRect();
+            const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
+            const submergedHeight = Math.max(0, objRect.bottom - waterSurfaceY);
+            const submergedRatio = Math.min(1, submergedHeight / objRect.height);
+            totalDisplacedVolume = obj.data.volume * submergedRatio;
+        }
+        updateWaterLevel(totalDisplacedVolume);
+        
+        const objOnScale = objects.find(o => o.isOnScale);
+        document.getElementById('scale-readout').textContent = objOnScale ? objOnScale.data.mass.toFixed(2) : '0.00';
+        
+        window.animationFrameId = requestAnimationFrame(gameLoop);
+    }
+    
+    function isOverBeaker(obj) {
+        const beakerRect = beakerEl.getBoundingClientRect();
+        const objRect = obj.el.getBoundingClientRect();
+        return objRect.right > beakerRect.left && objRect.left < beakerRect.right;
+    }
+
+    function handleBoundaries(obj, labRect) {
+        const objRect = obj.el.getBoundingClientRect();
+        if (obj.x < 0) { obj.x = 0; obj.vx *= -0.5; }
+        if (obj.x + objRect.width > labRect.width) { obj.x = labRect.width - objRect.width; obj.vx *= -0.5; }
+        if (obj.y < 0) { obj.y = 0; obj.vy = 0; }
+        if (obj.y + objRect.height > labRect.height) { 
+            obj.y = labRect.height - objRect.height;
+            obj.vy *= -0.2; // Bounce slightly
+            obj.vx *= 0.9;
+        }
+    }
+    
+    function handleScaleCollision(obj, scaleRect, labRect) {
+        const objRect = obj.el.getBoundingClientRect();
+        if (obj.vy > 0 && 
+            objRect.bottom > scaleRect.top && 
+            objRect.top < scaleRect.bottom &&
+            objRect.right > scaleRect.left && 
+            objRect.left < scaleRect.right) {
+                
+            obj.y = (scaleRect.top - labRect.top) - objRect.height;
+            obj.vy = 0;
+            obj.vx *= 0.8;
+            obj.isOnScale = true;
+        }
+    }
+
+    function handleBeakerPhysics(obj, beakerRect, labRect) {
+        const objRect = obj.el.getBoundingClientRect();
+        
+        if (obj.x + objRect.width > beakerRect.right - labRect.left) { obj.x = beakerRect.right - labRect.left - objRect.width; obj.vx *= -0.5; }
+        if (obj.x < beakerRect.left - labRect.left) { obj.x = beakerRect.left - labRect.left; obj.vx *= -0.5; }
+        
+        const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
+        if (objRect.bottom > waterSurfaceY) {
+            obj.isInBeaker = true;
+            
+            const objDensity = obj.data.mass / obj.data.volume;
+            const submergedRatio = Math.min(1, (objRect.bottom - waterSurfaceY) / objRect.height);
+            const displacedVolume = obj.data.volume * submergedRatio;
+            
+            const buoyancyForce = liquidDensity * displacedVolume;
+            const gravitationalForce = obj.data.mass;
+
+            const netForce = (buoyancyForce - gravitationalForce);
+            // f=ma -> a = f/m. This acceleration is scaled for the simulation.
+            const acceleration = (netForce / obj.data.mass) * 0.1; 
+
+            obj.vy -= acceleration; // Apply net force (up is negative y)
+            obj.vy *= waterDrag;
+            obj.vx *= waterDrag;
+
+        } else {
+            obj.isInBeaker = false;
+        }
+
+        if (objRect.bottom > beakerRect.bottom) {
+            obj.y = (beakerRect.bottom - labRect.top) - objRect.height;
+            if (obj.vy > 0) {
+                 obj.vy *= -0.1; // Small bounce at the bottom
+            }
+        }
+    }
+
+    function updateWaterLevel(displacedVolume = 0) {
+        const volumeReadout = document.getElementById('volume-readout');
+        const newTotalVolume = initialWaterLevel + displacedVolume;
+        
+        const isOverflowing = newTotalVolume > beakerCapacity;
+        waterEl.classList.toggle('overflow', isOverflowing);
+        overflowWarning.classList.toggle('hidden', !isOverflowing);
+
+        const height = Math.min(300, newTotalVolume * waterHeightPerML);
+        waterEl.style.height = `${height}px`;
+        volumeReadout.textContent = isOverflowing ? '> OVERFLOW' : newTotalVolume.toFixed(1);
+    }
+    
+    function saveTableData() {
+        const data = {};
+        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
+            const rowId = row.id;
+            data[rowId] = {
+                mass: row.querySelector('[data-col="mass"]').textContent,
+                volume: row.querySelector('[data-col="volume"]').textContent,
+                density: row.querySelector('[data-col="density"]').textContent,
+            };
+        });
+        localStorage.setItem('densityLabData', JSON.stringify(data));
+    }
+
+    function loadTableData() {
+        const data = JSON.parse(localStorage.getItem('densityLabData'));
+        if (!data) return;
+        for (const rowId in data) {
+            const row = document.getElementById(rowId);
+            if(row) {
+                row.querySelector('[data-col="mass"]').textContent = data[rowId].mass;
+                row.querySelector('[data-col="volume"]').textContent = data[rowId].volume;
+                row.querySelector('[data-col="density"]').textContent = data[rowId].density;
+            }
+        }
+    }
+
+    function createLabElement(id, innerHTML = '', className = '', type = 'div') {
+        const el = document.createElement(type);
+        if (id) el.id = id;
+        el.className = className;
+        el.innerHTML = innerHTML;
+        return el;
+    }
+
+    init();
+    gameLoop();
+});
+</script>
+</body>
+</html>
+
