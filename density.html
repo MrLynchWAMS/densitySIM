@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Density Lab</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎈</text></svg>">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
@@ -425,6 +423,102 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let scaleEl, beakerEl, waterEl, liquidDensitySlider, initialWaterSlider;
 
+    // --- Setup One-Time Event Listeners ---
+    // By setting these up once, we avoid the bug of multiple listeners being added on reset.
+    document.addEventListener('mousedown', startDrag);
+    document.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+
+    resetBtn.addEventListener('click', () => {
+         if(window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
+         init();
+         gameLoop();
+    });
+    
+    difficultySelect.addEventListener('change', () => {
+        if(window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
+        init();
+        gameLoop();
+    });
+    
+    checkAnswersBtn.addEventListener('click', checkAnswers);
+    exportBtn.addEventListener('click', handleExport);
+    
+    // Export modal listeners
+    document.getElementById('close-export-modal-btn').addEventListener('click', () => {
+         document.getElementById('export-modal').style.display = 'none';
+    });
+    document.getElementById('copy-link-btn').addEventListener('click', () => {
+        const linkText = document.getElementById('export-link');
+        linkText.select();
+        document.execCommand('copy');
+        alert('Link copied to clipboard!');
+    });
+
+    // Calculator Logic
+    calcButtons.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'BUTTON') return;
+
+        const value = e.target.dataset.value;
+        const displaySymbol = e.target.textContent;
+        let currentDisplay = calcDisplay.textContent;
+
+        if (currentDisplay === 'Error' || (currentDisplay === '0' && value !== '.' && value !== '(')) {
+            currentDisplay = '';
+        }
+
+        switch (value) {
+            case 'clear':
+                currentDisplay = '0';
+                break;
+            case '=':
+                try {
+                    const expression = currentDisplay.replace(/×/g, '*').replace(/÷/g, '/');
+                    // Use Function constructor for safer evaluation than eval()
+                    const result = new Function('return ' + expression)();
+                    if (isNaN(result) || !isFinite(result)) {
+                        currentDisplay = 'Error';
+                    } else {
+                        // Round to the hundredths place as requested
+                        currentDisplay = result.toFixed(2);
+                    }
+                } catch (error) {
+                    currentDisplay = 'Error';
+                }
+                break;
+            case '.':
+                // Prevent multiple decimals in the last number segment
+                const lastNumber = currentDisplay.split(/[\+\-\×\÷\(\)]/).pop();
+                if (!lastNumber.includes('.')) {
+                    currentDisplay += displaySymbol;
+                }
+                break;
+            default:
+                currentDisplay += displaySymbol;
+                break;
+        }
+        calcDisplay.textContent = currentDisplay;
+    });
+
+    helpBtn.addEventListener('click', () => {
+        document.getElementById('help-modal').classList.add('show');
+    });
+    
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('help-modal');
+        if (modal && (e.target.id === 'help-modal' || e.target.id === 'close-help' || e.target.id === 'close-help-btn')) {
+            modal.classList.remove('show');
+        }
+    });
+
+    knownResultsBody.addEventListener('input', saveTableData);
+    mysteryResultsBody.addEventListener('input', saveTableData);
+    knownResultsBody.addEventListener('blur', saveTableData, true);
+    mysteryResultsBody.addEventListener('blur', saveTableData, true);
+
     // --- Import / Export Logic ---
     async function handleExport() {
         let studentName = prompt("Please enter your first name to include in the report:", "");
@@ -706,13 +800,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function addEventListeners() {
-        document.addEventListener('mousedown', startDrag);
-        document.addEventListener('touchstart', startDrag, { passive: false });
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('touchmove', drag, { passive: false });
-        document.addEventListener('mouseup', endDrag);
-        document.addEventListener('touchend', endDrag);
-
         liquidDensitySlider.addEventListener('input', (e) => {
             liquidDensity = parseFloat(e.target.value);
             document.getElementById('liquid-density-value').textContent = liquidDensity.toFixed(2);
@@ -722,93 +809,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             initialWaterLevel = parseFloat(e.target.value);
             if (!objects.some(o => o.isInBeaker)) updateWaterLevel();
         });
-        
-        resetBtn.addEventListener('click', () => {
-             if(window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
-             init();
-             gameLoop();
-        });
-        
-        difficultySelect.addEventListener('change', () => {
-            if(window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
-            init();
-            gameLoop();
-        });
-        
-        checkAnswersBtn.addEventListener('click', checkAnswers);
-        exportBtn.addEventListener('click', handleExport);
-        
-        // Export modal listeners
-        document.getElementById('close-export-modal-btn').addEventListener('click', () => {
-             document.getElementById('export-modal').style.display = 'none';
-        });
-        document.getElementById('copy-link-btn').addEventListener('click', () => {
-            const linkText = document.getElementById('export-link');
-            linkText.select();
-            document.execCommand('copy');
-            alert('Link copied to clipboard!');
-        });
-
-        // Calculator Logic
-        calcButtons.addEventListener('click', (e) => {
-            if (e.target.tagName !== 'BUTTON') return;
-
-            const value = e.target.dataset.value;
-            const displaySymbol = e.target.textContent;
-            let currentDisplay = calcDisplay.textContent;
-
-            if (currentDisplay === 'Error' || (currentDisplay === '0' && value !== '.' && value !== '(')) {
-                currentDisplay = '';
-            }
-
-            switch (value) {
-                case 'clear':
-                    currentDisplay = '0';
-                    break;
-                case '=':
-                    try {
-                        const expression = currentDisplay.replace(/×/g, '*').replace(/÷/g, '/');
-                        // Use Function constructor for safer evaluation than eval()
-                        const result = new Function('return ' + expression)();
-                        if (isNaN(result) || !isFinite(result)) {
-                            currentDisplay = 'Error';
-                        } else {
-                            // Round to the hundredths place as requested
-                            currentDisplay = result.toFixed(2);
-                        }
-                    } catch (error) {
-                        currentDisplay = 'Error';
-                    }
-                    break;
-                case '.':
-                    // Prevent multiple decimals in the last number segment
-                    const lastNumber = currentDisplay.split(/[\+\-\×\÷\(\)]/).pop();
-                    if (!lastNumber.includes('.')) {
-                        currentDisplay += displaySymbol;
-                    }
-                    break;
-                default:
-                    currentDisplay += displaySymbol;
-                    break;
-            }
-            calcDisplay.textContent = currentDisplay;
-        });
-
-        helpBtn.addEventListener('click', () => {
-            document.getElementById('help-modal').classList.add('show');
-        });
-        
-        document.addEventListener('click', (e) => {
-            const modal = document.getElementById('help-modal');
-            if (modal && (e.target.id === 'help-modal' || e.target.id === 'close-help' || e.target.id === 'close-help-btn')) {
-                modal.classList.remove('show');
-            }
-        });
-
-        knownResultsBody.addEventListener('input', saveTableData);
-        mysteryResultsBody.addEventListener('input', saveTableData);
-        knownResultsBody.addEventListener('blur', saveTableData, true);
-        mysteryResultsBody.addEventListener('blur', saveTableData, true);
     }
 
     function checkAnswers() {
@@ -1192,4 +1192,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
 
