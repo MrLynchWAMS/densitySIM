@@ -259,6 +259,37 @@
                     <p class="text-sm text-amber-900 font-semibold">💡 Formula: Density = Mass ÷ Volume</p>
                     <p class="text-xs text-amber-800 mt-1">Example: 27g ÷ 10mL = 2.7 g/mL</p>
                 </div>
+
+                <!-- Calculator Start -->
+                <div id="calculator" class="mb-6 p-3 bg-slate-50 rounded-lg border-2 border-slate-200">
+                    <div id="calc-display" class="bg-slate-800 text-white text-right rounded-md p-2 mb-3 font-mono text-xl h-12 flex items-center justify-end overflow-x-auto">0</div>
+                    <div id="calc-buttons" class="grid grid-cols-4 gap-2 text-slate-700 font-bold">
+                        <button class="py-2 bg-red-200 hover:bg-red-300 rounded-md transition-colors" data-value="clear">C</button>
+                        <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors" data-value="(">(</button>
+                        <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors" data-value=")">)</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="/">÷</button>
+                        
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="7">7</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="8">8</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="9">9</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="*">×</button>
+
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="4">4</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="5">5</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="6">6</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="-">−</button>
+
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="1">1</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="2">2</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="3">3</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="+">+</button>
+
+                        <button class="col-span-2 py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="0">0</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value=".">.</button>
+                        <button class="py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors" data-value="=">=</button>
+                    </div>
+                </div>
+                <!-- Calculator End -->
                 
                  <div class="space-y-6">
                     <div>
@@ -354,6 +385,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let sessionData = {};
     let initialWaterLevelMarker = null;
     
+    // Calculator elements
+    const calcDisplay = document.getElementById('calc-display');
+    const calcButtons = document.getElementById('calc-buttons');
+
     const beakerCapacity = 300;
     const waterHeightPerML = 300 / beakerCapacity;
     const gravity = 0.5;
@@ -588,6 +623,51 @@ document.addEventListener('DOMContentLoaded', () => {
         
         checkAnswersBtn.addEventListener('click', checkAnswers);
         
+        // Calculator Logic
+        calcButtons.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON') return;
+
+            const value = e.target.dataset.value;
+            const displaySymbol = e.target.textContent;
+            let currentDisplay = calcDisplay.textContent;
+
+            if (currentDisplay === 'Error' || (currentDisplay === '0' && value !== '.' && value !== '(')) {
+                currentDisplay = '';
+            }
+
+            switch (value) {
+                case 'clear':
+                    currentDisplay = '0';
+                    break;
+                case '=':
+                    try {
+                        const expression = currentDisplay.replace(/×/g, '*').replace(/÷/g, '/');
+                        // Use Function constructor for safer evaluation than eval()
+                        const result = new Function('return ' + expression)();
+                        if (isNaN(result) || !isFinite(result)) {
+                            currentDisplay = 'Error';
+                        } else {
+                            // Round to the hundredths place as requested
+                            currentDisplay = result.toFixed(2);
+                        }
+                    } catch (error) {
+                        currentDisplay = 'Error';
+                    }
+                    break;
+                case '.':
+                    // Prevent multiple decimals in the last number segment
+                    const lastNumber = currentDisplay.split(/[\+\-\×\÷\(\)]/).pop();
+                    if (!lastNumber.includes('.')) {
+                        currentDisplay += displaySymbol;
+                    }
+                    break;
+                default:
+                    currentDisplay += displaySymbol;
+                    break;
+            }
+            calcDisplay.textContent = currentDisplay;
+        });
+
         helpBtn.addEventListener('click', () => {
             document.getElementById('help-modal').classList.add('show');
         });
@@ -936,3 +1016,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
