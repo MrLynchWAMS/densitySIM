@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Density Lab</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎈</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -256,6 +256,11 @@
             <div class="bg-white p-6 rounded-2xl shadow-lg overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Lab Results</h2>
                 
+                <div id="submission-info" class="hidden mb-4 p-3 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
+                    <h3 class="font-bold text-indigo-900">Viewing Submission:</h3>
+                    <p class="text-sm text-indigo-800"><strong id="student-name"></strong> submitted on <strong id="submission-date"></strong></p>
+                </div>
+                
                 <div class="bg-amber-50 border-2 border-amber-300 rounded-lg p-3 mb-4">
                     <p class="text-sm text-amber-900 font-semibold">💡 Formula: Density = Mass ÷ Volume</p>
                     <p class="text-xs text-amber-800 mt-1">Example: 27g ÷ 10mL = 2.7 g/mL</p>
@@ -302,11 +307,16 @@
                             <tbody id="known-results-body"></tbody>
                         </table>
                     </div>
-                        <h3 class="font-semibold mb-2 flex items-center gap-4">
-                            Mystery Objects
-                            <button id="check-answers-btn" class="text-xs bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-3 rounded transition-transform transform hover:scale-105">✓ Check Answers</button>
-                        </h3>
-                        <div id="score-display" class="text-right font-bold text-lg text-slate-800 pr-2">Score: 100%</div>
+                        <div class="flex justify-between items-center mb-2">
+                             <h3 class="font-semibold flex items-center gap-4">
+                                Mystery Objects
+                             </h3>
+                             <div id="score-display" class="font-bold text-lg text-slate-800 pr-2">Score: 100%</div>
+                        </div>
+                        <div class="flex gap-2 mb-2">
+                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
+                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export / Share</button>
+                        </div>
                         <table class="w-full text-left text-sm">
                            <thead class="text-xs text-slate-600 uppercase bg-slate-50">
                                 <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th class="p-2">Result</th></tr>
@@ -319,8 +329,21 @@
         </div>
     </div>
 
+    <!-- Export Modal -->
+    <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[10000]">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-lg w-full m-4">
+            <h2 class="text-2xl font-bold mb-4">🔗 Your Shareable Link</h2>
+            <p class="text-slate-600 mb-4">Copy this link to save your progress or share your completed lab results with your teacher.</p>
+            <textarea id="export-link" class="w-full p-3 border-2 border-slate-300 rounded-lg bg-slate-50 text-sm" readonly rows="4"></textarea>
+            <div class="mt-6 flex justify-end gap-4">
+                <button id="copy-link-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition-transform transform hover:scale-105">Copy Link</button>
+                <button id="close-export-modal-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-5 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
+
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
     const KNOWN_MATERIALS_REPO = [
         { id: 'Aluminum', density: 2.7, color: 'bg-slate-300', baseVolume: 15, shape: 'rounded-md', size: 'w-12 h-8' },
@@ -377,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkAnswersBtn = document.getElementById('check-answers-btn');
     const helpBtn = document.getElementById('help-btn');
     const measurementHint = document.getElementById('measurement-hint');
+    const exportBtn = document.getElementById('export-btn');
 
     let objects = [];
     let draggedObject = null;
@@ -398,6 +422,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const waterDrag = 0.95;
 
     let scaleEl, beakerEl, waterEl, liquidDensitySlider, initialWaterSlider;
+
+    // --- Import / Export Logic ---
+    async function handleExport() {
+        let studentName = prompt("Please enter your first name to include in the report:", "");
+        if (studentName === null || studentName.trim() === "") {
+            alert("Export cancelled. You must provide a name.");
+            return;
+        }
+        studentName = studentName.trim();
+
+        const dataToSave = {
+            name: studentName,
+            timestamp: new Date().toISOString(),
+            difficulty: currentDifficulty,
+            score: score,
+            sessionData: sessionData
+        };
+
+        try {
+            const jsonString = JSON.stringify(dataToSave);
+            const compressed = pako.deflate(jsonString, { to: 'string' });
+            const encodedData = btoa(compressed);
+            
+            const url = new URL(window.location.href);
+            url.searchParams.set('data', encodedData);
+            
+            const exportLink = document.getElementById('export-link');
+            exportLink.value = url.href;
+            document.getElementById('export-modal').style.display = 'flex';
+        } catch (error) {
+            console.error("Failed to export data:", error);
+            alert("An error occurred while trying to generate the link.");
+        }
+    }
+
+    async function handleImport() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const data = urlParams.get('data');
+        if (!data) return false;
+
+        try {
+            const compressed = atob(data);
+            const jsonString = pako.inflate(compressed, { to: 'string' });
+            const loadedData = JSON.parse(jsonString);
+
+            // Display submission info
+            document.getElementById('submission-info').classList.remove('hidden');
+            document.getElementById('student-name').textContent = loadedData.name;
+            const submissionDate = new Date(loadedData.timestamp);
+            document.getElementById('submission-date').textContent = submissionDate.toLocaleString();
+            
+            // Set difficulty and re-init
+            difficultySelect.value = loadedData.difficulty;
+            await init(loadedData);
+            
+            // Lock down UI for read-only view
+            document.querySelectorAll('[contenteditable="true"]').forEach(el => el.contentEditable = false);
+            document.querySelectorAll('select').forEach(el => el.disabled = true);
+            checkAnswersBtn.textContent = "View Results";
+            exportBtn.disabled = true;
+            exportBtn.style.opacity = '0.5';
+            resetBtn.disabled = true;
+            resetBtn.style.opacity = '0.5';
+
+
+            return true;
+        } catch (error) {
+            console.error("Failed to import data:", error);
+            alert("The provided link is invalid or corrupted. Starting a new session.");
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return false;
+        }
+    }
+
 
     function createLabLayout() {
         labArea.innerHTML = '';
@@ -492,16 +590,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(helpModal);
     }
     
-    function init() {
+    async function init(loadedData = null) {
         createLabLayout();
         objects = [];
-        sessionData = {};
+        sessionData = loadedData ? loadedData.sessionData : {};
+        
         knownObjectContainer.innerHTML = '';
         mysteryObjectContainer.innerHTML = '';
         knownResultsBody.innerHTML = '';
         mysteryResultsBody.innerHTML = '';
-        score = 100;
-        attempts = {};
+
+        score = loadedData ? loadedData.score : 100;
+        attempts = {}; // Reset attempts
         document.getElementById('score-display').textContent = `Score: ${score}%`;
 
         currentDifficulty = parseInt(difficultySelect.value);
@@ -524,13 +624,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             selectedMystery = [...MYSTERY_MATERIALS_REPO];
         }
+        selectedKnown.forEach(mat => addObjectToSim(mat, false, loadedData));
+        selectedMystery.forEach(mat => addObjectToSim(mat, true, loadedData));
         
-        selectedKnown = selectedKnown.sort(() => Math.random() - 0.5);
-        selectedMystery = selectedMystery.sort(() => Math.random() - 0.5);
-        
-        selectedKnown.forEach(mat => addObjectToSim(mat, false));
-        selectedMystery.forEach(mat => addObjectToSim(mat, true));
-        
+        // Restore table data if loading from import
+        if(loadedData) {
+            restoreTableData(loadedData.sessionData);
+        }
+
         liquidDensity = 1.0;
         initialWaterLevel = 100;
         document.getElementById('liquid-density-value').textContent = '1.00';
@@ -541,7 +642,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addEventListeners();
     }
     
-    function addObjectToSim(baseData, isMystery) {
+    function addObjectToSim(baseData, isMystery, loadedData) {
         const config = DIFFICULTY_CONFIG[currentDifficulty];
         const errorFactor = config.measurementError;
         
@@ -596,7 +697,10 @@ document.addEventListener('DOMContentLoaded', () => {
         tableBody.appendChild(tableRow);
         
         const rowId = tableRow.id;
-        sessionData[rowId] = { mass: '', volume: '', density: '', identification: '', result: '' };
+        // Only initialize sessionData if not loading from a file
+        if(!loadedData) {
+            sessionData[rowId] = { mass: '', volume: '', density: '', identification: '', result: '' };
+        }
     }
 
     function addEventListeners() {
@@ -630,7 +734,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         checkAnswersBtn.addEventListener('click', checkAnswers);
+        exportBtn.addEventListener('click', handleExport);
         
+        // Export modal listeners
+        document.getElementById('close-export-modal-btn').addEventListener('click', () => {
+             document.getElementById('export-modal').style.display = 'none';
+        });
+        document.getElementById('copy-link-btn').addEventListener('click', () => {
+            const linkText = document.getElementById('export-link');
+            linkText.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        });
+
         // Calculator Logic
         calcButtons.addEventListener('click', (e) => {
             if (e.target.tagName !== 'BUTTON') return;
@@ -1036,6 +1152,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function restoreTableData(savedData) {
+        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
+            const rowId = row.id;
+            const data = savedData[rowId];
+            if (!data) return;
+
+            const massCell = row.querySelector('[data-col="mass"]');
+            const volumeCell = row.querySelector('[data-col="volume"]');
+            const densityCell = row.querySelector('[data-col="density"]');
+            const idSelect = row.querySelector('[data-col="identification"]');
+
+            if (massCell && data.mass) massCell.textContent = data.mass;
+            if (volumeCell && data.volume) volumeCell.textContent = data.volume;
+            if (densityCell && data.density) densityCell.textContent = data.density;
+            if (idSelect && data.identification) idSelect.value = data.identification;
+        });
+    }
+
+
     function createLabElement(id, innerHTML = '', className = '', type = 'div') {
         const el = document.createElement(type);
         if (id) el.id = id;
@@ -1044,12 +1179,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return el;
     }
 
-    init();
-    gameLoop();
+    (async () => {
+        const isImported = await handleImport();
+        if (!isImported) {
+            await init();
+        }
+        gameLoop();
+    })();
 });
 </script>
 </body>
 </html>
-
-
 
