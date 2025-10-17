@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Density Lab</title>
+    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎈&lt;/text&gt;&lt;/svg&gt;">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
@@ -257,8 +258,8 @@
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Lab Results</h2>
                 
                 <div id="submission-info" class="hidden mb-4 p-3 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
-                    <h3 class="font-bold text-indigo-900">Viewing Submission:</h3>
-                    <p class="text-sm text-indigo-800"><strong id="student-name"></strong> submitted on <strong id="submission-date"></strong></p>
+                    <h3 class="font-bold text-indigo-900 mb-2">Submission History:</h3>
+                    <div id="submission-list" class="text-sm text-indigo-800 space-y-2"></div>
                 </div>
                 
                 <div class="bg-amber-50 border-2 border-amber-300 rounded-lg p-3 mb-4">
@@ -528,20 +529,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         studentName = studentName.trim();
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const existingDataParam = urlParams.get('data');
+        let history = [];
+
+        if (existingDataParam) {
+            try {
+                const binaryString = atob(existingDataParam);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                const jsonString = pako.inflate(bytes, { to: 'string' });
+                const prevData = JSON.parse(jsonString);
+                history = prevData.history || [];
+                if(prevData.current) history.push(prevData.current);
+            } catch(e) {
+                console.warn("Could not parse previous submission data. Starting fresh history.");
+            }
+        }
+
         const dataToSave = {
-            name: studentName,
-            timestamp: new Date().toISOString(),
-            difficulty: currentDifficulty,
-            score: score,
-            sessionData: sessionData
+            history: history,
+            current: {
+                name: studentName,
+                timestamp: new Date().toISOString(),
+                difficulty: currentDifficulty,
+                score: score,
+                sessionData: sessionData
+            }
         };
 
         try {
             const jsonString = JSON.stringify(dataToSave);
-            const compressed = pako.deflate(jsonString, { to: 'string' });
-            const encodedData = btoa(compressed);
+            const compressed = pako.deflate(jsonString); // Returns Uint8Array
+
+            let binary = '';
+            const len = compressed.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(compressed[i]);
+            }
+            const encodedData = btoa(binary);
             
-            const url = new URL(window.location.href);
+            // FIX: Use the known base URL because window.location can be unreliable 
+            // (e.g., 'about:srcdoc') when the page is running in a sandboxed iframe.
+            const baseUrl = 'https://custom.scienceclass.rocks/densitySIM/density.html';
+            const url = new URL(baseUrl);
             url.searchParams.set('data', encodedData);
             
             const exportLink = document.getElementById('export-link');
@@ -559,29 +590,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!data) return false;
 
         try {
-            const compressed = atob(data);
-            const jsonString = pako.inflate(compressed, { to: 'string' });
-            const loadedData = JSON.parse(jsonString);
+            const binaryString = atob(data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const jsonString = pako.inflate(bytes, { to: 'string' });
+            const loadedDataWrapper = JSON.parse(jsonString);
 
-            // Display submission info
-            document.getElementById('submission-info').classList.remove('hidden');
-            document.getElementById('student-name').textContent = loadedData.name;
-            const submissionDate = new Date(loadedData.timestamp);
-            document.getElementById('submission-date').textContent = submissionDate.toLocaleString();
+            if (!loadedDataWrapper.current) throw new Error("Invalid data structure.");
+
+            const loadedData = loadedDataWrapper.current;
+            const history = loadedDataWrapper.history || [];
+            const allSubmissions = [...history, loadedData];
+
+            const submissionInfoDiv = document.getElementById('submission-info');
+            const submissionList = document.getElementById('submission-list');
+            submissionList.innerHTML = '';
+
+            allSubmissions.forEach((submission, index) => {
+                const date = new Date(submission.timestamp);
+                const entry = document.createElement('div');
+                entry.className = (index < allSubmissions.length - 1 ? 'border-b border-indigo-200 pb-2' : '');
+                entry.innerHTML = `<strong>${submission.name}</strong> submitted on <strong>${date.toLocaleString()}</strong> (Score: ${submission.score}%)`;
+                submissionList.appendChild(entry);
+            });
+            submissionInfoDiv.classList.remove('hidden');
             
-            // Set difficulty and re-init
             difficultySelect.value = loadedData.difficulty;
             await init(loadedData);
             
-            // Lock down UI for read-only view
             document.querySelectorAll('[contenteditable="true"]').forEach(el => el.contentEditable = false);
             document.querySelectorAll('select').forEach(el => el.disabled = true);
             checkAnswersBtn.textContent = "View Results";
-            exportBtn.disabled = true;
-            exportBtn.style.opacity = '0.5';
+            checkAnswers();
+            exportBtn.disabled = false;
+            exportBtn.textContent = '📤 Forward / Re-Share';
             resetBtn.disabled = true;
             resetBtn.style.opacity = '0.5';
-
 
             return true;
         } catch (error) {
@@ -1192,5 +1238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
+
 
 
