@@ -515,12 +515,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    knownResultsBody.addEventListener('input', saveTableData);
-    mysteryResultsBody.addEventListener('input', saveTableData);
-    knownResultsBody.addEventListener('blur', saveTableData, true);
-    mysteryResultsBody.addEventListener('blur', saveTableData, true);
+    helpBtn.addEventListener('click', () => {
+        document.getElementById('help-modal').classList.add('show');
+    });
+    
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('help-modal');
+        if (modal && (e.target.id === 'help-modal' || e.target.id === 'close-help' || e.target.id === 'close-help-btn')) {
+            modal.classList.remove('show');
+        }
+    });
+
+    // The event listeners for saving table data have been removed for a more reliable export method.
 
     // --- Import / Export Logic ---
+    function collectCurrentTableData() {
+        const data = {};
+        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
+            const rowId = row.id;
+            if (!rowId) return;
+            data[rowId] = {};
+            
+            const massCell = row.querySelector('[data-col="mass"]');
+            const volumeCell = row.querySelector('[data-col="volume"]');
+            const densityCell = row.querySelector('[data-col="density"]');
+            const idSelect = row.querySelector('[data-col="identification"]');
+                
+            if (massCell) data[rowId].mass = massCell.textContent;
+            if (volumeCell) data[rowId].volume = volumeCell.textContent;
+            if (densityCell) data[rowId].density = densityCell.textContent;
+            if (idSelect) data[rowId].identification = idSelect.value;
+        });
+        return data;
+    }
+
     async function handleExport() {
         let studentName = prompt("Please enter your first name to include in the report:", "");
         if (studentName === null || studentName.trim() === "") {
@@ -547,6 +575,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        const currentTableData = collectCurrentTableData();
+
         const dataToSave = {
             history: history,
             current: {
@@ -554,7 +584,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 timestamp: new Date().toISOString(),
                 difficulty: currentDifficulty,
                 score: score,
-                sessionData: sessionData
+                sessionData: currentTableData
             }
         };
 
@@ -619,6 +649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             difficultySelect.value = loadedData.difficulty;
             await init(loadedData);
+            restoreTableData(loadedData.sessionData);
             
             document.querySelectorAll('[contenteditable="true"]').forEach(el => el.contentEditable = false);
             document.querySelectorAll('select').forEach(el => el.disabled = true);
@@ -815,7 +846,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             isMystery 
         };
 
-        const objEl = createLabElement(`obj-${instanceData.id}-${Date.now()}`, 
+        const objEl = createLabElement(`obj-${instanceData.id}`, 
             `<span class="font-bold ${isMystery ? 'text-xl' : 'text-sm'} text-slate-800 pointer-events-none">${isMystery ? instanceData.id : name}</span>`, 
             `lab-object grab shadow-md ${instanceData.color} ${instanceData.shape} ${instanceData.size}`);
         const container = isMystery ? mysteryObjectContainer : knownObjectContainer;
@@ -828,7 +859,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const options = '<option value="">Select...</option>' + KNOWN_MATERIALS_REPO.map(m => `<option value="${m.id}">${m.name || m.id}</option>`).join('');
         
-        const tableRow = createLabElement(`row-${instanceData.id}-${Date.now()}`, 
+        const tableRow = createLabElement(`row-${instanceData.id}`, 
             `<td class="p-2 font-bold">${isMystery ? `Object ${instanceData.id}` : name}</td>
              <td class="p-2" contenteditable="true" data-col="mass"></td>
              <td class="p-2" contenteditable="true" data-col="volume"></td>
@@ -839,10 +870,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tableBody.appendChild(tableRow);
         
         const rowId = tableRow.id;
-        // Only initialize sessionData if not loading from a file
-        if(!loadedData) {
-            sessionData[rowId] = { mass: '', volume: '', density: '', identification: '', result: '' };
-        }
+        // The automatic sessionData initialization has been removed as it is handled by the export function.
     }
 
     function addEventListeners() {
@@ -1183,24 +1211,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         volumeReadout.textContent = isOverflowing ? '> OVERFLOW' : newTotalVolume.toFixed(1);
     }
     
-    function saveTableData() {
-        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
-            const rowId = row.id;
-            if (!sessionData[rowId]) sessionData[rowId] = {};
-            
-            const massCell = row.querySelector('[data-col="mass"]');
-            const volumeCell = row.querySelector('[data-col="volume"]');
-            const densityCell = row.querySelector('[data-col="density"]');
-        const idSelect = row.querySelector('[data-col="identification"]');
-            
-        if (massCell) sessionData[rowId].mass = massCell.textContent;
-        if (volumeCell) sessionData[rowId].volume = volumeCell.textContent;
-        if (densityCell) sessionData[rowId].density = densityCell.textContent;
-        if (idSelect) sessionData[rowId].identification = idSelect.value;
-        });
-    }
+    // The saveTableData function is no longer needed. Data is collected on export.
 
     function restoreTableData(savedData) {
+        if (!savedData) return;
         document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
             const rowId = row.id;
             const data = savedData[rowId];
@@ -1238,6 +1252,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
+
+
 
 
 
