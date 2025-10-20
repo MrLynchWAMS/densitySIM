@@ -313,16 +313,16 @@
                              </h3>
                              <div id="score-display" class="font-bold text-lg text-slate-800 pr-2 hidden"></div>
                         </div>
-                        <div class="flex gap-2 mb-2">
-                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
-                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export / Share</button>
-                        </div>
                         <table class="w-full text-left text-sm">
                            <thead class="text-xs text-slate-600 uppercase bg-slate-50">
                                 <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th class="p-2">Result</th></tr>
                             </thead>
                             <tbody id="mystery-results-body"></tbody>
                         </table>
+                        <div class="flex gap-2 mt-4">
+                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
+                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export / Share</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -409,8 +409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentDifficulty = 2;
     let sessionData = {};
     let initialWaterLevelMarker = null;
-    let score = 100;
-    let attempts = {};
+    let score = 0;
     
     // Calculator elements
     const calcDisplay = document.getElementById('calc-display');
@@ -772,8 +771,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         knownResultsBody.innerHTML = '';
         mysteryResultsBody.innerHTML = '';
 
-        score = loadedData ? loadedData.score : 100;
-        attempts = {}; // Reset attempts
+        score = loadedData ? loadedData.score : 0;
         document.getElementById('score-display').classList.add('hidden'); // Ensure score is hidden on init
 
         currentDifficulty = parseInt(difficultySelect.value);
@@ -886,12 +884,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function checkAnswers() {
         const mysteryRows = mysteryResultsBody.querySelectorAll('tr');
+        const totalMysteryObjects = mysteryRows.length;
+        if (totalMysteryObjects === 0) return; // Avoid division by zero
+
         const scoreDisplay = document.getElementById('score-display');
-        scoreDisplay.classList.remove('hidden'); // Reveal the score display on first check
-        let allCorrect = true;
+        scoreDisplay.classList.remove('hidden');
+
+        let correctCount = 0;
 
         mysteryRows.forEach(row => {
-            if (row.classList.contains('is-correct')) return;
+            // Don't re-evaluate rows that are already correctly locked in.
+            if (row.classList.contains('is-correct')) {
+                correctCount++;
+                return;
+            }
 
             const densityCell = row.querySelector('[data-col="density"]');
             const identificationSelect = row.querySelector('[data-col="identification"]');
@@ -902,44 +908,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             const userId = identificationSelect.value;
             const mysteryObj = objects.find(o => o.data.isMystery && o.data.id === objId);
             
-            if (!mysteryObj || isNaN(userDensity) || !userId) {
-                resultCell.innerHTML = '<span class="text-gray-400">Incomplete</span>';
-                allCorrect = false;
-                return;
-            }
-            
-            const trueDensity = mysteryObj.data.trueDensity;
-            const answerId = mysteryObj.data.answerId;
+            if (!mysteryObj) return; // Should not happen
 
-            const isDensityCorrect = Math.abs((userDensity - trueDensity) / trueDensity) * 100 < 5; // 5% tolerance
-            const isIdCorrect = userId === answerId;
+            const isComplete = !isNaN(userDensity) && userId;
             
-            if (isDensityCorrect && isIdCorrect) {
-                resultCell.innerHTML = '<span class="feedback-icon text-green-600">✓ Correct!</span>';
-                row.classList.add('is-correct');
-                densityCell.contentEditable = false;
-                identificationSelect.disabled = true;
-                row.style.backgroundColor = '#f0fff4';
+            if (!isComplete) {
+                resultCell.innerHTML = '<span class="text-gray-400">Incomplete</span>';
             } else {
-                allCorrect = false;
-                let feedbackParts = [];
-                if (!isDensityCorrect) feedbackParts.push("Density wrong");
-                if (!isIdCorrect) feedbackParts.push("ID wrong");
-                
-                resultCell.innerHTML = `<span class="feedback-icon text-red-500">✗ ${feedbackParts.join(', ')}</span>`;
-                
-                if (!attempts[objId]) {
-                    attempts[objId] = true; // Mark that an incorrect attempt has been made
-                    score -= 10;
+                const trueDensity = mysteryObj.data.trueDensity;
+                const answerId = mysteryObj.data.answerId;
+                const isDensityCorrect = Math.abs((userDensity - trueDensity) / trueDensity) * 100 < 5; // 5% tolerance
+                const isIdCorrect = userId === answerId;
+
+                if (isDensityCorrect && isIdCorrect) {
+                    resultCell.innerHTML = '<span class="feedback-icon text-green-600">✓ Correct!</span>';
+                    row.classList.add('is-correct');
+                    densityCell.contentEditable = false;
+                    identificationSelect.disabled = true;
+                    row.style.backgroundColor = '#f0fff4';
+                    correctCount++;
+                } else {
+                    let feedbackParts = [];
+                    if (!isDensityCorrect) feedbackParts.push("Density wrong");
+                    if (!isIdCorrect) feedbackParts.push("ID wrong");
+                    resultCell.innerHTML = `<span class="feedback-icon text-red-500">✗ ${feedbackParts.join(', ')}</span>`;
                 }
             }
         });
-        
-        score = Math.max(0, score);
+
+        score = Math.round((correctCount / totalMysteryObjects) * 100);
         scoreDisplay.textContent = `Score: ${score}%`;
         
-        if (allCorrect) {
-             scoreDisplay.innerHTML += ' <span class="text-green-600 font-bold">🎉 Complete!</span>';
+        if (correctCount === totalMysteryObjects && totalMysteryObjects > 0) {
+            scoreDisplay.innerHTML += ' <span class="text-green-600 font-bold">🎉 Complete!</span>';
         }
     }
 
@@ -1252,11 +1253,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
 
