@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function gameLoop() {
         const labRect = labArea.getBoundingClientRect();
-        let objectInBeaker = null;
+        const objectsInBeaker = [];
         let totalDisplacedVolume = 0;
 
         objects.forEach(obj => {
@@ -410,25 +410,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleBoundaries(obj, labRect);
             }
             
-            if(obj.isInBeaker) objectInBeaker = obj;
+            if(obj.isInBeaker) objectsInBeaker.push(obj);
 
             obj.el.style.left = `${obj.x}px`;
             obj.el.style.top = `${obj.y}px`;
         });
         
-        if(objectInBeaker) {
-            const obj = objectInBeaker;
+        objectsInBeaker.forEach(obj => {
             const objRect = obj.el.getBoundingClientRect();
             const beakerRect = beakerEl.getBoundingClientRect();
             const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
             const submergedHeight = Math.max(0, objRect.bottom - waterSurfaceY);
             const submergedRatio = Math.min(1, submergedHeight / objRect.height);
-            totalDisplacedVolume = obj.data.volume * submergedRatio;
-        }
+            totalDisplacedVolume += obj.data.volume * submergedRatio;
+        });
         updateWaterLevel(totalDisplacedVolume);
         
-        const objOnScale = objects.find(o => o.isOnScale);
-        document.getElementById('scale-readout').textContent = objOnScale ? objOnScale.data.mass.toFixed(2) : '0.00';
+        const objsOnScale = objects.filter(o => o.isOnScale);
+        let mass = 0.0;
+        objsOnScale.forEach(x => {mass += x.data.mass});
+        document.getElementById('scale-readout').textContent = mass.toFixed(2);
         
         window.animationFrameId = requestAnimationFrame(gameLoop);
     }
