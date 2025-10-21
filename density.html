@@ -335,23 +335,49 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Import/Export helpers
-  function collectCurrentTableData() {
-    const data = {};
-    document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
-      const rowId = row.id;
-      if (!rowId) return;
-      data[rowId] = {};
-      const massCell = row.querySelector('[data-col="mass"]');
-      const volumeCell = row.querySelector('[data-col="volume"]');
-      const densityCell = row.querySelector('[data-col="density"]');
-      const idSelect = row.querySelector('[data-col="identification"]');
-      if (massCell) data[rowId].mass = massCell.textContent;
-      if (volumeCell) data[rowId].volume = volumeCell.textContent;
-      if (densityCell) data[rowId].density = densityCell.textContent;
-      if (idSelect) data[rowId].identification = idSelect.value;
-    });
-    return data;
-  }
+function collectCurrentTableData() {
+  const data = {};
+  document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
+    const rowId = row.id;
+    if (!rowId) return;
+
+    const firstCell = row.querySelector('td');
+    const isMystery = row.parentElement && row.parentElement.id === 'mystery-results-body';
+
+    data[rowId] = {
+      label: firstCell ? firstCell.textContent.trim() : '',
+      isMystery
+    };
+
+    const massCell = row.querySelector('[data-col="mass"]');
+    const volumeCell = row.querySelector('[data-col="volume"]');
+    const densityCell = row.querySelector('[data-col="density"]');
+    const idSelect = row.querySelector('[data-col="identification"]');
+    const resultCell = row.querySelector('[data-col="result"]');
+
+    if (massCell) data[rowId].mass = massCell.textContent;
+    if (volumeCell) data[rowId].volume = volumeCell.textContent;
+    if (densityCell) data[rowId].density = densityCell.textContent;
+    if (idSelect) data[rowId].identification = idSelect.value || '';
+    if (resultCell) data[rowId].result = resultCell.textContent.trim();
+
+    // Snapshot whether this row was marked correct at submission time
+    data[rowId].isCorrect = row.classList.contains('is-correct');
+
+    // For mystery rows, also capture the ground truth used in this session
+    if (isMystery) {
+      const objLabel = (firstCell && firstCell.textContent || '').replace(/^Object\s+/,'').trim(); // e.g., "A"
+      const obj = objects.find(o => o.data.isMystery && (o.data.id === objLabel));
+      if (obj) {
+        data[rowId].expected = {
+          answerId: obj.data.answerId || obj.data.id,
+          trueDensity: obj.data.trueDensity
+        };
+      }
+    }
+  });
+  return data;
+}
 
 
 async function handleExport() {
@@ -381,6 +407,7 @@ async function handleExport() {
     }
   }
 
+  // Snapshot everything visible in the tables, including result outputs and correctness flags
   const currentTableData = collectCurrentTableData();
 
   const dataToSave = {
@@ -403,21 +430,23 @@ async function handleExport() {
     for (let i = 0; i < len; i++) binary += String.fromCharCode(compressed[i]);
     const encodedData = btoa(binary);
 
-    // Build a base URL that prefers the current page (density2.html) so the
-    // receiving page shows "Submission History" with name and timestamp.
-    // Fallback to a known public URL if we're in an iframe/about:srcdoc.
+    // Always target the read-only viewer to ensure consistent display of saved results
     const baseHref = (() => {
       try {
-        const isHttp = /^https?:$/.test(window.location.protocol);
-        const isTop = window.top === window; // not sandboxed in an iframe
-        if (isHttp && isTop) {
-          const u = new URL(window.location.href);
-          u.search = '';
-          u.hash = '';
-          return u.href; // e.g., .../density2.html
+        const u = new URL(window.location.href);
+        u.search = '';
+        u.hash = '';
+        // Force the path to density2.html regardless of current page
+        if (!/density2\.html$/i.test(u.pathname)) {
+          // Replace density.html or density with density2.html; if none match, append it
+          const replaced = u.pathname.replace(/density(?:\.html)?$/i, 'density2.html');
+          u.pathname = replaced === u.pathname
+            ? (u.pathname.endsWith('/') ? `${u.pathname}density2.html` : `${u.pathname}/density2.html`)
+            : replaced;
         }
+        return u.href;
       } catch {}
-      // Fallback: point to the deployed density2 page (not density.html)
+      // Fallback: point to the deployed density2 page
       return 'https://custom.scienceclass.rocks/densitySIM/density2.html';
     })();
 
