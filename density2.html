@@ -209,9 +209,9 @@
             <p class="text-lg text-slate-600 mt-2">Measure, calculate, and discover the density of various materials!</p>
             <div class="mt-4 flex justify-center items-center gap-4">
                 <label for="difficulty-select" class="font-semibold text-slate-700">Difficulty Level:</label>
-                <select id="difficulty-select" class="px-4 py-2 text-base border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg font-semibold">
-                    <option value="1">Level 1 - Beginner</option>
-                    <option value="2" selected>Level 2 - Intermediate</option>
+                <select   id="difficulty-select"   class="px-4 py-2 w-56 text-base border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg font-semibold" >
+                <option value="1" selected>Level 1 - Beginner</option>
+                    <option value="2">Level 2 - Intermediate</option>
                     <option value="3">Level 3 - Advanced</option>
                     <option value="4">Challenge Mode</option>
                 </select>
@@ -313,16 +313,16 @@
                              </h3>
                              <div id="score-display" class="font-bold text-lg text-slate-800 pr-2 hidden"></div>
                         </div>
-                        <div class="flex gap-2 mb-2">
-                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
-                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export / Share</button>
-                        </div>
                         <table class="w-full text-left text-sm">
                            <thead class="text-xs text-slate-600 uppercase bg-slate-50">
                                 <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th class="p-2">Result</th></tr>
                             </thead>
                             <tbody id="mystery-results-body"></tbody>
                         </table>
+                        <div class="flex gap-2 mt-4">
+                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
+                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export / Share</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -345,49 +345,75 @@
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
 
-    const KNOWN_MATERIALS_REPO = [
-        { id: 'Aluminum', density: 2.7, color: 'bg-slate-300', baseVolume: 15, shape: 'rounded-md', size: 'w-12 h-8' },
-        { id: 'Titanium', density: 4.54, color: 'bg-gray-400', baseVolume: 12, shape: 'rounded-lg', size: 'w-10 h-10' },
-        { id: 'Zinc', density: 7.14, color: 'bg-blue-200', baseVolume: 8, shape: 'rounded-sm', size: 'w-8 h-8' },
-        { id: 'Lead', density: 11.34, color: 'bg-gray-600', baseVolume: 10, shape: 'rounded-lg', size: 'w-10 h-10' },
-        { id: 'Gold', density: 19.3, color: 'bg-yellow-400', baseVolume: 5, shape: 'rounded-sm', size: 'w-8 h-8' },
-        { id: 'OakWood', name: 'Oak Wood', density: 0.75, color: 'bg-amber-600', baseVolume: 25, shape: 'rounded-xl', size: 'w-14 h-6' },
-        { id: 'Ice', density: 0.92, color: 'bg-cyan-200', baseVolume: 20, shape: 'rounded-full', size: 'w-10 h-10' },
-        { id: 'Brick', density: 1.92, color: 'bg-red-400', baseVolume: 18, shape: 'rounded-none', size: 'w-12 h-6' },
-        { id: 'Marble', density: 2.71, color: 'bg-stone-200', baseVolume: 15, shape: 'rounded-full', size: 'w-10 h-10' },
-        { id: 'PVC', density: 1.38, color: 'bg-neutral-100', baseVolume: 22, shape: 'rounded-xl', size: 'w-16 h-5' },
-    ];
+   // First, let's expand our materials repository to include more buoyancy options
+const KNOWN_MATERIALS_REPO = [
+    // Sinking materials (density > 1.0 g/mL)
+    { id: 'Gold', density: 19.3, color: 'bg-yellow-400', baseVolume: 5, shape: 'rounded-sm', size: 'w-8 h-8' },
+    { id: 'Lead', density: 11.34, color: 'bg-gray-600', baseVolume: 10, shape: 'rounded-lg', size: 'w-10 h-10' },
+    { id: 'Zinc', density: 7.14, color: 'bg-blue-200', baseVolume: 8, shape: 'rounded-sm', size: 'w-8 h-8' },
+    { id: 'Titanium', density: 4.54, color: 'bg-gray-400', baseVolume: 12, shape: 'rounded-lg', size: 'w-10 h-10' },
+    { id: 'Copper', density: 8.96, color: 'bg-orange-600', baseVolume: 7, shape: 'rounded-md', size: 'w-9 h-9' }, // Added
+    { id: 'Aluminum', density: 2.7, color: 'bg-slate-300', baseVolume: 15, shape: 'rounded-md', size: 'w-12 h-8' },
+    { id: 'Marble', density: 2.71, color: 'bg-stone-200', baseVolume: 15, shape: 'rounded-full', size: 'w-10 h-10' },
+    { id: 'Steel', density: 7.85, color: 'bg-gray-500', baseVolume: 9, shape: 'rounded-sm', size: 'w-9 h-9' }, // Added
+    { id: 'Brick', density: 1.92, color: 'bg-red-400', baseVolume: 18, shape: 'rounded-none', size: 'w-12 h-6' },
+    { id: 'Glass', density: 2.5, color: 'bg-cyan-100', baseVolume: 16, shape: 'rounded-md', size: 'w-11 h-7' }, // Added
+    { id: 'PVC', density: 1.38, color: 'bg-neutral-100', baseVolume: 22, shape: 'rounded-xl', size: 'w-16 h-5' },
     
-    const MYSTERY_MATERIALS_REPO = [
-        { id: 'A', answerId: 'Aluminum', color: 'bg-purple-400', shape: 'rounded-lg', size: 'w-12 h-12' },
-        { id: 'B', answerId: 'OakWood', color: 'bg-teal-400', shape: 'rounded-md', size: 'w-16 h-8' },
-        { id: 'C', answerId: 'Gold', color: 'bg-pink-400', shape: 'rounded-full', size: 'w-14 h-14' },
-        { id: 'D', answerId: 'PVC', color: 'bg-orange-400', shape: 'rounded-none', size: 'w-10 h-10' },
-        { id: 'E', answerId: 'Lead', color: 'bg-lime-400', shape: 'rounded-xl', size: 'w-14 h-8' },
-    ];
+    // Slightly buoyant (density close to but < 1.0 g/mL)
+    { id: 'Ice', density: 0.92, color: 'bg-cyan-200', baseVolume: 20, shape: 'rounded-full', size: 'w-10 h-10' },
+    { id: 'Wax', density: 0.95, color: 'bg-yellow-100', baseVolume: 19, shape: 'rounded-md', size: 'w-11 h-8' }, // Added
+    
+    // More buoyant materials
+    { id: 'OakWood', name: 'Oak Wood', density: 0.75, color: 'bg-amber-600', baseVolume: 25, shape: 'rounded-xl', size: 'w-14 h-6' },
+    { id: 'Cork', density: 0.24, color: 'bg-amber-700', baseVolume: 28, shape: 'rounded-md', size: 'w-12 h-9' }, // Added
+    
+    // Extremely buoyant materials
+    { id: 'Styrofoam', density: 0.05, color: 'bg-white', baseVolume: 30, shape: 'rounded-lg', size: 'w-14 h-8' }, // Added
+    { id: 'AirBubble', name: 'Air Bubble', density: 0.001, color: 'bg-blue-50', baseVolume: 35, shape: 'rounded-full', size: 'w-12 h-12' } // Added
+];
 
-    const DIFFICULTY_CONFIG = {
-        1: { 
-            knownMaterials: ['Lead', 'Zinc', 'Aluminum'],
-            mysteryMaterials: ['A', 'E'],
-            measurementError: 0
-        },
-        2: { 
-            knownMaterials: ['Lead', 'Zinc', 'Aluminum', 'Brick', 'Ice'],
-            mysteryMaterials: ['A', 'B', 'E'],
-            measurementError: 0
-        },
-        3: { 
-            knownMaterials: ['Lead', 'Zinc', 'Aluminum', 'Brick', 'Ice', 'OakWood', 'Marble', 'PVC'],
-            mysteryMaterials: ['A', 'B', 'D', 'E'],
-            measurementError: 0
-        },
-        4: { 
-            knownMaterials: null,
-            mysteryMaterials: null,
-            measurementError: 0.02
-        }
-    };
+// Update the mystery materials to match our known materials
+const MYSTERY_MATERIALS_REPO = [
+    { id: 'A', answerId: 'Zinc', color: 'bg-purple-400', shape: 'rounded-lg', size: 'w-12 h-12' },
+    { id: 'B', answerId: 'OakWood', color: 'bg-teal-400', shape: 'rounded-md', size: 'w-16 h-8' },
+    { id: 'C', answerId: 'Gold', color: 'bg-pink-400', shape: 'rounded-full', size: 'w-14 h-14' },
+    { id: 'D', answerId: 'PVC', color: 'bg-orange-400', shape: 'rounded-none', size: 'w-10 h-10' },
+    { id: 'E', answerId: 'Lead', color: 'bg-lime-400', shape: 'rounded-xl', size: 'w-14 h-8' },
+    { id: 'F', answerId: 'Ice', color: 'bg-green-300', shape: 'rounded-lg', size: 'w-11 h-11' }, // Added
+    { id: 'G', answerId: 'Aluminum', color: 'bg-indigo-300', shape: 'rounded-md', size: 'w-13 h-9' }, // Added
+    { id: 'H', answerId: 'Styrofoam', color: 'bg-rose-200', shape: 'rounded-xl', size: 'w-15 h-7' }, // Added
+    { id: 'I', answerId: 'Cork', color: 'bg-amber-300', shape: 'rounded-sm', size: 'w-11 h-11' }, // Added
+    { id: 'J', answerId: 'Wax', color: 'bg-yellow-200', shape: 'rounded-lg', size: 'w-12 h-9' } // Added
+];
+
+// Updated difficulty configuration with no repeating materials between levels
+const DIFFICULTY_CONFIG = {
+    1: { 
+        // Level 1: Only sinking materials (no floating objects)
+        knownMaterials: ['Zinc', 'Lead', 'Marble', 'Brick'],
+        mysteryMaterials: ['A', 'E'],
+        measurementError: 0
+    },
+    2: { 
+        // Level 2: Add one slightly buoyant material (Ice)
+        knownMaterials: ['Gold', 'Titanium', 'PVC', 'Ice'],
+        mysteryMaterials: ['C', 'D', 'F'],
+        measurementError: 0
+    },
+    3: { 
+        // Level 3: Add more buoyant materials (Oak Wood, Cork)
+        knownMaterials: ['Aluminum', 'Steel', 'OakWood', 'Cork'],
+        mysteryMaterials: ['B', 'G', 'I'],
+        measurementError: 0
+    },
+    4: { 
+        // Level 4: Challenge with extreme buoyancy and all remaining materials
+        knownMaterials: ['Copper', 'Glass', 'Wax', 'Styrofoam', 'AirBubble'],
+        mysteryMaterials: ['H', 'J'],
+        measurementError: 0.02
+    }
+};
 
     const labArea = document.getElementById('lab-area');
     const knownObjectContainer = document.getElementById('known-object-container');
@@ -1253,11 +1279,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
 
