@@ -353,50 +353,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     return data;
   }
 
-  async function handleExport() {
-    let studentName = prompt("Please enter your first name to include in the report:", "");
-    if (studentName === null || studentName.trim() === "") { alert("Export cancelled. You must provide a name."); return; }
-    studentName = studentName.trim();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const existingDataParam = urlParams.get('data');
-    let history = [];
+async function handleExport() {
+  let studentName = prompt("Please enter your first name to include in the report:", "");
+  if (studentName === null || studentName.trim() === "") {
+    alert("Export cancelled. You must provide a name.");
+    return;
+  }
+  studentName = studentName.trim();
 
-    if (existingDataParam) {
-      try {
-        const binaryString = atob(existingDataParam);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
-        const jsonString = pako.inflate(bytes, { to: 'string' });
-        const prevData = JSON.parse(jsonString);
-        history = prevData.history || [];
-        if(prevData.current) history.push(prevData.current);
-      } catch(e) {
-        console.warn("Could not parse previous submission data. Starting fresh history.");
-      }
-    }
+  // If this page was opened via a share link, include prior submission as history
+  const urlParams = new URLSearchParams(window.location.search);
+  const existingDataParam = urlParams.get('data');
+  let history = [];
 
-    const currentTableData = collectCurrentTableData();
-    const dataToSave = {
-      history: history,
-      current: { name: studentName, timestamp: new Date().toISOString(), difficulty: currentDifficulty, score: score, sessionData: currentTableData }
-    };
-
+  if (existingDataParam) {
     try {
-      const jsonString = JSON.stringify(dataToSave);
-      const compressed = pako.deflate(jsonString);
-      let binary = ''; const len = compressed.byteLength;
-      for (let i = 0; i < len; i++) binary += String.fromCharCode(compressed[i]);
-      const encodedData = btoa(binary);
-      const baseUrl = 'https://custom.scienceclass.rocks/densitySIM/density.html';
-      const url = new URL(baseUrl); url.searchParams.set('data', encodedData);
-      const exportLink = document.getElementById('export-link'); exportLink.value = url.href;
-      document.getElementById('export-modal').style.display = 'flex';
-    } catch (error) {
-      console.error("Failed to export data:", error);
-      alert("An error occurred while trying to generate the link.");
+      const binaryString = atob(existingDataParam);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+      const jsonString = pako.inflate(bytes, { to: 'string' });
+      const prevData = JSON.parse(jsonString);
+      history = prevData.history || [];
+      if (prevData.current) history.push(prevData.current);
+    } catch (e) {
+      console.warn("Could not parse previous submission data. Starting fresh history.", e);
     }
   }
+
+  const currentTableData = collectCurrentTableData();
+
+  const dataToSave = {
+    history: history,
+    current: {
+      name: studentName,
+      timestamp: new Date().toISOString(),
+      difficulty: currentDifficulty,
+      score: score,
+      sessionData: currentTableData
+    }
+  };
+
+  try {
+    const jsonString = JSON.stringify(dataToSave);
+    const compressed = pako.deflate(jsonString);
+
+    let binary = '';
+    const len = compressed.byteLength;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(compressed[i]);
+    const encodedData = btoa(binary);
+
+    // Build a base URL that prefers the current page (density2.html) so the
+    // receiving page shows "Submission History" with name and timestamp.
+    // Fallback to a known public URL if we're in an iframe/about:srcdoc.
+    const baseHref = (() => {
+      try {
+        const isHttp = /^https?:$/.test(window.location.protocol);
+        const isTop = window.top === window; // not sandboxed in an iframe
+        if (isHttp && isTop) {
+          const u = new URL(window.location.href);
+          u.search = '';
+          u.hash = '';
+          return u.href; // e.g., .../density2.html
+        }
+      } catch {}
+      // Fallback: point to the deployed density2 page (not density.html)
+      return 'https://custom.scienceclass.rocks/densitySIM/density2.html';
+    })();
+
+    const url = new URL(baseHref);
+    url.searchParams.set('data', encodedData);
+
+    const exportLink = document.getElementById('export-link');
+    exportLink.value = url.href;
+    document.getElementById('export-modal').style.display = 'flex';
+  } catch (error) {
+    console.error("Failed to export data:", error);
+    alert("An error occurred while trying to generate the link.");
+  }
+}
+
 
   async function handleImport() {
     const urlParams = new URLSearchParams(window.location.search);
