@@ -334,7 +334,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Import/Export helpers
+ 
+// 1) Replace collectCurrentTableData with this version
 function collectCurrentTableData() {
   const data = {};
   document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
@@ -366,7 +367,7 @@ function collectCurrentTableData() {
 
     // For mystery rows, also capture the ground truth used in this session
     if (isMystery) {
-      const objLabel = (firstCell && firstCell.textContent || '').replace(/^Object\s+/,'').trim(); // e.g., "A"
+      const objLabel = (firstCell && firstCell.textContent || '').replace(/^Object\s+/, '').trim(); // e.g., "A", "B"
       const obj = objects.find(o => o.data.isMystery && (o.data.id === objLabel));
       if (obj) {
         data[rowId].expected = {
@@ -379,7 +380,7 @@ function collectCurrentTableData() {
   return data;
 }
 
-
+// 2) Replace handleExport with this version (always use current page, no density2.html)
 async function handleExport() {
   let studentName = prompt("Please enter your first name to include in the report:", "");
   if (studentName === null || studentName.trim() === "") {
@@ -430,24 +431,18 @@ async function handleExport() {
     for (let i = 0; i < len; i++) binary += String.fromCharCode(compressed[i]);
     const encodedData = btoa(binary);
 
-    // Always target the read-only viewer to ensure consistent display of saved results
+    // Build a base URL using the current page, so results open on the same path
     const baseHref = (() => {
       try {
         const u = new URL(window.location.href);
         u.search = '';
         u.hash = '';
-        // Force the path to density2.html regardless of current page
-        if (!/density2\.html$/i.test(u.pathname)) {
-          // Replace density.html or density with density2.html; if none match, append it
-          const replaced = u.pathname.replace(/density(?:\.html)?$/i, 'density2.html');
-          u.pathname = replaced === u.pathname
-            ? (u.pathname.endsWith('/') ? `${u.pathname}density2.html` : `${u.pathname}/density2.html`)
-            : replaced;
-        }
-        return u.href;
-      } catch {}
-      // Fallback: point to the deployed density2 page
-      return 'https://custom.scienceclass.rocks/densitySIM/density2.html';
+        return u.href; // same page, no query/hash
+      } catch {
+        // Very defensive fallback: strip query/hash manually
+        const href = (window.location && window.location.href) || '';
+        return href.split('#')[0].split('?')[0];
+      }
     })();
 
     const url = new URL(baseHref);
@@ -459,6 +454,84 @@ async function handleExport() {
   } catch (error) {
     console.error("Failed to export data:", error);
     alert("An error occurred while trying to generate the link.");
+  }
+}
+
+// 3) Replace handleImport with this version so it prefers the saved snapshot and avoids re-checking
+async function handleImport() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const data = urlParams.get('data'); if (!data) return false;
+
+  try {
+    const binaryString = atob(data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const jsonString = pako.inflate(bytes, { to: 'string' });
+    const loadedDataWrapper = JSON.parse(jsonString);
+    if (!loadedDataWrapper.current) throw new Error("Invalid data structure.");
+
+    const loadedData = loadedDataWrapper.current;
+    const history = loadedDataWrapper.history || [];
+    const allSubmissions = [...history, loadedData];
+
+    const submissionInfoDiv = document.getElementById('submission-info');
+    const submissionList = document.getElementById('submission-list');
+    submissionList.innerHTML = '';
+    allSubmissions.forEach((submission, index) => {
+      const date = new Date(submission.timestamp);
+      const entry = document.createElement('div');
+      entry.className = (index < allSubmissions.length - 1 ? 'border-b border-indigo-200 pb-2' : '');
+      entry.innerHTML = `<strong>${submission.name}</strong> submitted on <strong>${date.toLocaleString()}</strong> (Score: ${submission.score}%)`;
+      submissionList.appendChild(entry);
+    });
+    submissionInfoDiv.classList.remove('hidden');
+
+    difficultySelect.value = loadedData.difficulty;
+    await init(loadedData);
+    restoreTableData(loadedData.sessionData);
+
+    // If the saved snapshot includes result/isCorrect, render it and skip re-checking
+    const hasSavedResults = Object.values(loadedData.sessionData || {}).some(r => r && (r.result || typeof r.isCorrect === 'boolean'));
+    if (hasSavedResults) {
+      Object.entries(loadedData.sessionData || {}).forEach(([rowId, rowData]) => {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+        if (rowData.isCorrect) row.classList.add('is-correct');
+
+        const resultCell = row.querySelector('[data-col="result"]');
+        const densityCell = row.querySelector('[data-col="density"]');
+        const idSelect = row.querySelector('[data-col="identification"]');
+
+        if (resultCell && rowData.result) resultCell.textContent = rowData.result;
+        if (densityCell) densityCell.contentEditable = false;
+        if (idSelect) idSelect.disabled = true;
+        if (rowData.isCorrect) row.style.backgroundColor = '#f0fff4';
+      });
+
+      // Show saved score
+      const scoreDisplay = document.getElementById('score-display');
+      scoreDisplay.classList.remove('hidden');
+      scoreDisplay.textContent = `Score: ${loadedData.score}%`;
+    } else {
+      // Fallback to current behavior if no saved results were captured
+      checkAnswers();
+    }
+
+    // Lock the page into read-only viewing mode
+    document.querySelectorAll('[contenteditable="true"]').forEach(el => el.contentEditable = false);
+    document.querySelectorAll('select').forEach(el => el.disabled = true);
+    checkAnswersBtn.textContent = "View Results";
+    exportBtn.disabled = false;
+    exportBtn.textContent = '📤 Forward / Re-Share';
+    resetBtn.disabled = true;
+    resetBtn.style.opacity = '0.5';
+
+    return true;
+  } catch (error) {
+    console.error("Failed to import data:", error);
+    alert("The provided link is invalid or corrupted. Starting a new session.");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return false;
   }
 }
 
