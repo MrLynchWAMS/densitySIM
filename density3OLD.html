@@ -130,7 +130,7 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='rou[...]
             background-repeat: no-repeat;
             background-position: right 0.5rem center;
             background-size: 1.5em 1.5em;
@@ -209,9 +209,9 @@
             <p class="text-lg text-slate-600 mt-2">Measure, calculate, and discover the density of various materials!</p>
             <div class="mt-4 flex justify-center items-center gap-4">
                 <label for="difficulty-select" class="font-semibold text-slate-700">Difficulty Level:</label>
-                <select id="difficulty-select" class="px-4 py-2 text-base border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg font-semibold">
-                    <option value="1">Level 1 - Beginner</option>
-                    <option value="2" selected>Level 2 - Intermediate</option>
+                <select id="difficulty-select" class="px-4 py-2 text-sm border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg font-semibo[...]
+                    <option value="1" selected>Level 1 - Beginner</option>
+                    <option value="2">Level 2 - Intermediate</option>
                     <option value="3">Level 3 - Advanced</option>
                     <option value="4">Challenge Mode</option>
                 </select>
@@ -224,15 +224,32 @@
             <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col">
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Materials</h2>
                 
-                <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
-                    <h3 class="font-bold text-blue-900 mb-2">📋 Procedure:</h3>
-                    <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                        <li>Drag object to <strong>scale</strong> → record mass</li>
-                        <li>Drag object to <strong>beaker</strong> → record volume change</li>
-                        <li><strong>Calculate</strong> density: D = M ÷ V</li>
-                        <li>Compare mystery densities to known materials</li>
-                    </ol>
+                <!-- Calculator has been moved here -->
+                <div id="calculator" class="mb-4 p-3 bg-slate-50 rounded-lg border-2 border-slate-200">
+                    <div id="calc-display" class="bg-slate-800 text-white text-right rounded-md p-2 mb-3 font-mono text-xl h-12 flex items-center justify-end overflow-x-auto">0</div>
+                    <div id="calc-buttons" class="grid grid-cols-4 gap-2 text-slate-700 font-bold">
+                        <button class="py-2 bg-red-200 hover:bg-red-300 rounded-md transition-colors" data-value="clear">C</button>
+                        <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors" data-value="(">(</button>
+                        <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors" data-value=")">)</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="/">÷</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="7">7</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="8">8</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="9">9</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="*">×</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="4">4</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="5">5</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="6">6</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="-">−</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="1">1</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="2">2</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="3">3</button>
+                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="+">+</button>
+                        <button class="col-span-2 py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="0">0</button>
+                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value=".">.</button>
+                        <button class="py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors" data-value="=">=</button>
+                    </div>
                 </div>
+                <!-- Calculator End -->
 
                 <div class="space-y-4 flex-grow">
                     <div>
@@ -244,7 +261,7 @@
                         <div id="mystery-object-container" class="object-shelf"></div>
                     </div>
                 </div>
-                 <button id="reset-btn" class="mt-auto w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">🔄 New Challenge</button>
+                 <button id="reset-btn" class="mt-auto w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">🔄 New Challenge</[...]
             </div>
 
             <!-- Center Panel: Simulation -->
@@ -256,6 +273,17 @@
             <!-- Right Panel: Results Tables -->
             <div class="bg-white p-6 rounded-2xl shadow-lg overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-4 border-b pb-2">Lab Results</h2>
+
+                <!-- Procedure has been moved here -->
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+                    <h3 class="font-bold text-blue-900 mb-2">📋 Procedure:</h3>
+                    <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                        <li>Drag object to <strong>scale</strong> → record mass</li>
+                        <li>Drag object to <strong>beaker</strong> → record volume change</li>
+                        <li><strong>Calculate</strong> density: D = M ÷ V</li>
+                        <li>Compare mystery densities to known materials</li>
+                    </ol>
+                </div>
                 
                 <div id="submission-info" class="hidden mb-4 p-3 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
                     <h3 class="font-bold text-indigo-900 mb-2">Submission History:</h3>
@@ -267,36 +295,7 @@
                     <p class="text-xs text-amber-800 mt-1">Example: 27g ÷ 10mL = 2.7 g/mL</p>
                 </div>
 
-                <!-- Calculator Start -->
-                <div id="calculator" class="mb-6 p-3 bg-slate-50 rounded-lg border-2 border-slate-200">
-                    <div id="calc-display" class="bg-slate-800 text-white text-right rounded-md p-2 mb-3 font-mono text-xl h-12 flex items-center justify-end overflow-x-auto">0</div>
-                    <div id="calc-buttons" class="grid grid-cols-4 gap-2 text-slate-700 font-bold">
-                        <button class="py-2 bg-red-200 hover:bg-red-300 rounded-md transition-colors" data-value="clear">C</button>
-                        <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors" data-value="(">(</button>
-                        <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md transition-colors" data-value=")">)</button>
-                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="/">÷</button>
-                        
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="7">7</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="8">8</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="9">9</button>
-                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="*">×</button>
-
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="4">4</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="5">5</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="6">6</button>
-                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="-">−</button>
-
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="1">1</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="2">2</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="3">3</button>
-                        <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md transition-colors" data-value="+">+</button>
-
-                        <button class="col-span-2 py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value="0">0</button>
-                        <button class="py-2 bg-white hover:bg-slate-100 rounded-md transition-colors border border-slate-200" data-value=".">.</button>
-                        <button class="py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors" data-value="=">=</button>
-                    </div>
-                </div>
-                <!-- Calculator End -->
+                <!-- Calculator has been removed from here -->
                 
                  <div class="space-y-6">
                     <div>
@@ -312,18 +311,18 @@
                              <h3 class="font-semibold flex items-center gap-4">
                                 Mystery Objects
                              </h3>
-                             <div id="score-display" class="font-bold text-lg text-slate-800 pr-2">Score: 100%</div>
-                        </div>
-                        <div class="flex gap-2 mb-2">
-                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
-                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export / Share</button>
+                             <div id="score-display" class="font-bold text-lg text-slate-800 pr-2 hidden"></div>
                         </div>
                         <table class="w-full text-left text-sm">
                            <thead class="text-xs text-slate-600 uppercase bg-slate-50">
-                                <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th class="p-2">Result</th></tr>
+                                <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th cl[...]
                             </thead>
                             <tbody id="mystery-results-body"></tbody>
                         </table>
+                        <div class="flex gap-2 mt-4">
+                             <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-1[...]
+                             <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 [...]
+                        </div>
                     </div>
                 </div>
             </div>
@@ -407,11 +406,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let draggedObject = null;
     let liquidDensity = 1.0;
     let initialWaterLevel = 100;
-    let currentDifficulty = 2;
+    let currentDifficulty = 1;
     let sessionData = {};
     let initialWaterLevelMarker = null;
-    let score = 100;
-    let attempts = {};
+    let score = 0;
     
     // Calculator elements
     const calcDisplay = document.getElementById('calc-display');
@@ -515,12 +513,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    knownResultsBody.addEventListener('input', saveTableData);
-    mysteryResultsBody.addEventListener('input', saveTableData);
-    knownResultsBody.addEventListener('blur', saveTableData, true);
-    mysteryResultsBody.addEventListener('blur', saveTableData, true);
+    helpBtn.addEventListener('click', () => {
+        document.getElementById('help-modal').classList.add('show');
+    });
+    
+    document.addEventListener('click', (e) => {
+        const modal = document.getElementById('help-modal');
+        if (modal && (e.target.id === 'help-modal' || e.target.id === 'close-help' || e.target.id === 'close-help-btn')) {
+            modal.classList.remove('show');
+        }
+    });
+
+    // The event listeners for saving table data have been removed for a more reliable export method.
 
     // --- Import / Export Logic ---
+    function collectCurrentTableData() {
+        const data = {};
+        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
+            const rowId = row.id;
+            if (!rowId) return;
+            data[rowId] = {};
+            
+            const massCell = row.querySelector('[data-col="mass"]');
+            const volumeCell = row.querySelector('[data-col="volume"]');
+            const densityCell = row.querySelector('[data-col="density"]');
+            const idSelect = row.querySelector('[data-col="identification"]');
+                
+            if (massCell) data[rowId].mass = massCell.textContent;
+            if (volumeCell) data[rowId].volume = volumeCell.textContent;
+            if (densityCell) data[rowId].density = densityCell.textContent;
+            if (idSelect) data[rowId].identification = idSelect.value;
+        });
+        return data;
+    }
+
     async function handleExport() {
         let studentName = prompt("Please enter your first name to include in the report:", "");
         if (studentName === null || studentName.trim() === "") {
@@ -547,6 +573,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        const currentTableData = collectCurrentTableData();
+
         const dataToSave = {
             history: history,
             current: {
@@ -554,7 +582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 timestamp: new Date().toISOString(),
                 difficulty: currentDifficulty,
                 score: score,
-                sessionData: sessionData
+                sessionData: currentTableData
             }
         };
 
@@ -619,6 +647,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             difficultySelect.value = loadedData.difficulty;
             await init(loadedData);
+            restoreTableData(loadedData.sessionData);
             
             document.querySelectorAll('[contenteditable="true"]').forEach(el => el.contentEditable = false);
             document.querySelectorAll('select').forEach(el => el.disabled = true);
@@ -657,7 +686,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             `<div class="absolute bottom-0 w-full h-8 bg-gray-600 rounded-b-lg"></div>
              <div class="absolute bottom-8 w-5/6 h-12 bg-gray-500 -skew-x-12 left-0 rounded-tl-md"></div>
              <div class="absolute bottom-8 w-5/6 h-12 bg-gray-500 skew-x-12 right-0 rounded-tr-md"></div>
-             <div id="scale-readout" class="absolute bottom-9 bg-gray-800 text-cyan-300 font-mono text-3xl w-40 h-12 flex items-center justify-center rounded-lg shadow-inner border-2 border-cyan-600">0.00</div>
+             <div id="scale-readout" class="absolute bottom-9 bg-gray-800 text-cyan-300 font-mono text-3xl w-40 h-12 flex items-center justify-center rounded-lg shadow-inner border-2 border-cyan-600">[...]
              <div id="scale-platform" class="absolute top-0 w-44 h-4 bg-gray-400 rounded-t-md border-b-2 border-gray-500"></div>`, 'relative w-56 h-24');
         scaleWrapper.append(scaleEl);
 
@@ -668,9 +697,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         initialWaterSlider = createLabElement('initial-water-slider', '', 'h-48', 'input');
         Object.assign(initialWaterSlider, { type: 'range', min: 50, max: 200, value: 100, step: 1 });
         initialWaterSlider.setAttribute('orient', 'vertical');
-        beakerEl = createLabElement('beaker', '<div id="water" class="water"><div class="water-surface"></div></div><div class="beaker-markings"><span data-label="50"></span><span data-label="100"></span><span data-label="150"></span><span data-label="200"></span><span data-label="250"></span></div>', 'beaker');
+        beakerEl = createLabElement('beaker', '<div id="water" class="water"><div class="water-surface"></div></div><div class="beaker-markings"><span data-label="50"></span><span data-label="100"></s[...]
         waterEl = beakerEl.querySelector('#water');
-        const volumeReadoutEl = createLabElement('volume-readout-bg', '<span id="volume-readout">100.0</span> mL', 'bg-gray-800 text-white font-mono text-2xl p-3 rounded-lg text-center shadow-md mb-4');
+        const volumeReadoutEl = createLabElement('volume-readout-bg', '<span id="volume-readout">100.0</span> mL', 'bg-gray-800 text-white font-mono text-2xl p-3 rounded-lg text-center shadow-md mb-4'[...]
         beakerAndSlider.append(initialWaterSlider, beakerEl);
         beakerWrapper.append(beakerAndSlider, volumeReadoutEl);
 
@@ -742,9 +771,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         knownResultsBody.innerHTML = '';
         mysteryResultsBody.innerHTML = '';
 
-        score = loadedData ? loadedData.score : 100;
-        attempts = {}; // Reset attempts
-        document.getElementById('score-display').textContent = `Score: ${score}%`;
+        score = loadedData ? loadedData.score : 0;
+        document.getElementById('score-display').classList.add('hidden'); // Ensure score is hidden on init
 
         currentDifficulty = parseInt(difficultySelect.value);
         const config = DIFFICULTY_CONFIG[currentDifficulty];
@@ -815,7 +843,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             isMystery 
         };
 
-        const objEl = createLabElement(`obj-${instanceData.id}-${Date.now()}`, 
+        const objEl = createLabElement(`obj-${instanceData.id}`, 
             `<span class="font-bold ${isMystery ? 'text-xl' : 'text-sm'} text-slate-800 pointer-events-none">${isMystery ? instanceData.id : name}</span>`, 
             `lab-object grab shadow-md ${instanceData.color} ${instanceData.shape} ${instanceData.size}`);
         const container = isMystery ? mysteryObjectContainer : knownObjectContainer;
@@ -828,21 +856,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const options = '<option value="">Select...</option>' + KNOWN_MATERIALS_REPO.map(m => `<option value="${m.id}">${m.name || m.id}</option>`).join('');
         
-        const tableRow = createLabElement(`row-${instanceData.id}-${Date.now()}`, 
+        const tableRow = createLabElement(`row-${instanceData.id}`, 
             `<td class="p-2 font-bold">${isMystery ? `Object ${instanceData.id}` : name}</td>
              <td class="p-2" contenteditable="true" data-col="mass"></td>
              <td class="p-2" contenteditable="true" data-col="volume"></td>
              <td class="p-2" contenteditable="true" data-col="density"></td>
-             ${isMystery ? `<td class="p-2"><select data-col="identification" class="w-full bg-white border border-slate-300 rounded-md p-1 text-xs">${options}</select></td><td class="p-2 text-center" data-col="result"></td>` : ''}`, 
+             ${isMystery ? `<td class="p-2"><select data-col="identification" class="w-full bg-white border border-slate-300 rounded-md p-1 text-xs">${options}</select></td><td class="p-2 text-center"[...]
             'border-b', 'tr');
         const tableBody = isMystery ? mysteryResultsBody : knownResultsBody;
         tableBody.appendChild(tableRow);
         
         const rowId = tableRow.id;
-        // Only initialize sessionData if not loading from a file
-        if(!loadedData) {
-            sessionData[rowId] = { mass: '', volume: '', density: '', identification: '', result: '' };
-        }
+        // The automatic sessionData initialization has been removed as it is handled by the export function.
     }
 
     function addEventListeners() {
@@ -859,11 +884,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function checkAnswers() {
         const mysteryRows = mysteryResultsBody.querySelectorAll('tr');
+        const totalMysteryObjects = mysteryRows.length;
+        if (totalMysteryObjects === 0) return; // Avoid division by zero
+
         const scoreDisplay = document.getElementById('score-display');
-        let allCorrect = true;
+        scoreDisplay.classList.remove('hidden');
+
+        let correctCount = 0;
 
         mysteryRows.forEach(row => {
-            if (row.classList.contains('is-correct')) return;
+            // Don't re-evaluate rows that are already correctly locked in.
+            if (row.classList.contains('is-correct')) {
+                correctCount++;
+                return;
+            }
 
             const densityCell = row.querySelector('[data-col="density"]');
             const identificationSelect = row.querySelector('[data-col="identification"]');
@@ -874,44 +908,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             const userId = identificationSelect.value;
             const mysteryObj = objects.find(o => o.data.isMystery && o.data.id === objId);
             
-            if (!mysteryObj || isNaN(userDensity) || !userId) {
-                resultCell.innerHTML = '<span class="text-gray-400">Incomplete</span>';
-                allCorrect = false;
-                return;
-            }
-            
-            const trueDensity = mysteryObj.data.trueDensity;
-            const answerId = mysteryObj.data.answerId;
+            if (!mysteryObj) return; // Should not happen
 
-            const isDensityCorrect = Math.abs((userDensity - trueDensity) / trueDensity) * 100 < 5; // 5% tolerance
-            const isIdCorrect = userId === answerId;
+            const isComplete = !isNaN(userDensity) && userId;
             
-            if (isDensityCorrect && isIdCorrect) {
-                resultCell.innerHTML = '<span class="feedback-icon text-green-600">✓ Correct!</span>';
-                row.classList.add('is-correct');
-                densityCell.contentEditable = false;
-                identificationSelect.disabled = true;
-                row.style.backgroundColor = '#f0fff4';
+            if (!isComplete) {
+                resultCell.innerHTML = '<span class="text-gray-400">Incomplete</span>';
             } else {
-                allCorrect = false;
-                let feedbackParts = [];
-                if (!isDensityCorrect) feedbackParts.push("Density wrong");
-                if (!isIdCorrect) feedbackParts.push("ID wrong");
-                
-                resultCell.innerHTML = `<span class="feedback-icon text-red-500">✗ ${feedbackParts.join(', ')}</span>`;
-                
-                if (!attempts[objId]) {
-                    attempts[objId] = true; // Mark that an incorrect attempt has been made
-                    score -= 10;
+                const trueDensity = mysteryObj.data.trueDensity;
+                const answerId = mysteryObj.data.answerId;
+                const isDensityCorrect = Math.abs((userDensity - trueDensity) / trueDensity) * 100 < 5; // 5% tolerance
+                const isIdCorrect = userId === answerId;
+
+                if (isDensityCorrect && isIdCorrect) {
+                    resultCell.innerHTML = '<span class="feedback-icon text-green-600">✓ Correct!</span>';
+                    row.classList.add('is-correct');
+                    densityCell.contentEditable = false;
+                    identificationSelect.disabled = true;
+                    row.style.backgroundColor = '#f0fff4';
+                    correctCount++;
+                } else {
+                    let feedbackParts = [];
+                    if (!isDensityCorrect) feedbackParts.push("Density wrong");
+                    if (!isIdCorrect) feedbackParts.push("ID wrong");
+                    resultCell.innerHTML = `<span class="feedback-icon text-red-500">✗ ${feedbackParts.join(', ')}</span>`;
                 }
             }
         });
-        
-        score = Math.max(0, score);
+
+        score = Math.round((correctCount / totalMysteryObjects) * 100);
         scoreDisplay.textContent = `Score: ${score}%`;
         
-        if (allCorrect) {
-             scoreDisplay.innerHTML += ' <span class="text-green-600 font-bold">🎉 Complete!</span>';
+        if (correctCount === totalMysteryObjects && totalMysteryObjects > 0) {
+            scoreDisplay.innerHTML += ' <span class="text-green-600 font-bold">🎉 Complete!</span>';
         }
     }
 
@@ -969,264 +998,269 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isMysteryShelf = container.id === 'mystery-object-container';
             if (isOver && draggedObject.data.isMystery === isMysteryShelf) {
                 draggedObject.isInLab = false;
-                draggedObject.el.removeAttribute('style');
+[...]
+
+                draggedObject.el.style.position = 'relative';
+                draggedObject.el.style.left = '';
+                draggedObject.el.style.top = '';
                 container.appendChild(draggedObject.el);
+                
+                // Clear any measurements when returning to shelf
+                draggedObject.isOnScale = false;
+                draggedObject.isInBeaker = false;
+                updateScaleReadout();
+                updateWaterLevel();
             }
         });
-
-        draggedObject.el.classList.remove('grabbing');
+        
         draggedObject.isDragging = false;
+        draggedObject.el.classList.remove('grabbing');
         draggedObject = null;
         
         hideMeasurementHint();
     }
-    
+
     function showMeasurementHint() {
-        measurementHint.textContent = '👆 Drag to scale for mass, or beaker for volume!';
+        if (!draggedObject) return;
         measurementHint.classList.remove('hidden');
+        updateMeasurementHint();
+
+        // Highlight potential drop targets
         scaleEl.classList.add('highlight-scale');
         beakerEl.classList.add('highlight-beaker');
     }
-    
+
+    function hideMeasurementHint() {
+        measurementHint.classList.add('hidden');
+        scaleEl.classList.remove('highlight-scale');
+        beakerEl.classList.remove('highlight-beaker');
+    }
+
     function updateMeasurementHint() {
         if (!draggedObject) return;
-        
+
         const objRect = draggedObject.el.getBoundingClientRect();
-        const scaleRect = document.getElementById('scale-platform').getBoundingClientRect();
+        const scaleRect = scaleEl.getBoundingClientRect();
         const beakerRect = beakerEl.getBoundingClientRect();
-        
-        const overScale = !(objRect.right < scaleRect.left || objRect.left > scaleRect.right || 
-                           objRect.bottom < scaleRect.top || objRect.top > scaleRect.bottom);
-        const overBeaker = !(objRect.right < beakerRect.left || objRect.left > beakerRect.right || 
-                            objRect.bottom < beakerRect.top || objRect.top > beakerRect.bottom);
-        
+
+        const overScale = isOver(objRect, scaleRect);
+        const overBeaker = isOver(objRect, beakerRect);
+
         if (overScale) {
-            measurementHint.textContent = '⚖️ Drop here to measure MASS';
-            scaleEl.classList.add('highlight-scale');
-            beakerEl.classList.remove('highlight-beaker');
+            measurementHint.innerHTML = `Drop onto the <strong>scale</strong> to measure its <strong>mass</strong>.`;
         } else if (overBeaker) {
-            measurementHint.textContent = '🥤 Drop here to measure VOLUME';
-            beakerEl.classList.add('highlight-beaker');
-            scaleEl.classList.remove('highlight-scale');
+            measurementHint.innerHTML = `Drop into the <strong>beaker</strong> to measure its <strong>volume</strong> by displacement.`;
         } else {
-            measurementHint.textContent = '👆 Drag to scale for mass, or beaker for volume!';
-            scaleEl.classList.add('highlight-scale');
-            beakerEl.classList.add('highlight-beaker');
+             measurementHint.innerHTML = `Drag the object to the <strong>scale</strong> or the <strong>beaker</strong>.`;
         }
     }
-    
-    function hideMeasurementHint() {
-        setTimeout(() => {
-            measurementHint.classList.add('hidden');
-            scaleEl.classList.remove('highlight-scale');
-            beakerEl.classList.remove('highlight-beaker');
-        }, 300);
+
+    function isOver(rectA, rectB) {
+        return !(rectA.right < rectB.left || rectA.left > rectB.right || rectA.bottom < rectB.top || rectA.top > rectB.bottom);
     }
     
     function gameLoop() {
+        if(document.hidden) { // Pause simulation if tab is not visible
+            window.animationFrameId = requestAnimationFrame(gameLoop);
+            return;
+        }
+
         const labRect = labArea.getBoundingClientRect();
-        let objectInBeaker = null;
+        const scaleRect = scaleEl.getBoundingClientRect();
+        const beakerRect = beakerEl.getBoundingClientRect();
+        const waterRect = waterEl.getBoundingClientRect();
+
         let totalDisplacedVolume = 0;
+        let isAnyObjectOnScale = false;
 
         objects.forEach(obj => {
-            if (!obj.isInLab) return;
-            obj.isOnScale = false;
+            if (!obj.isInLab || obj.isDragging) return;
 
-            if (obj.isDragging) {
-                 const beakerRect = beakerEl.getBoundingClientRect();
-                 const objRect = obj.el.getBoundingClientRect();
-                 obj.isInBeaker = objRect.left < beakerRect.right && objRect.right > beakerRect.left && objRect.bottom > beakerRect.top;
+            // --- Physics ---
+            const objRect = obj.el.getBoundingClientRect();
+            
+            // Check for collision with scale platform
+            const scalePlatformRect = document.getElementById('scale-platform').getBoundingClientRect();
+            if (obj.vy > 0 && isOver(objRect, scalePlatformRect) && objRect.bottom < scalePlatformRect.bottom + 15) {
+                obj.y = scalePlatformRect.top - labRect.top - obj.el.offsetHeight;
+                obj.vy *= -0.3; // bounce
+                obj.vx *= 0.9;
+                obj.isOnScale = true;
+            } else if (obj.isOnScale && !isOver(objRect, scaleRect)) {
+                obj.isOnScale = false;
+            }
+
+            // Check for beaker interaction
+            if (isOver(objRect, beakerRect)) {
+                handleBeakerInteraction(obj, objRect, beakerRect, waterRect);
             } else {
-                const scalePlatform = document.getElementById('scale-platform');
-                handleScaleCollision(obj, scalePlatform.getBoundingClientRect(), labRect);
-                
-                if (isOverBeaker(obj) && !obj.isOnScale) {
-                    handleBeakerPhysics(obj, beakerEl.getBoundingClientRect(), labRect);
-                }
-                
-                if (!obj.isInBeaker) {
-                    obj.vy += gravity;
-                }
-                
-                obj.x += obj.vx;
-                obj.y += obj.vy;
-                
-                handleBoundaries(obj, labRect);
+                obj.isInBeaker = false;
+            }
+
+            // Gravity
+            obj.vy += gravity;
+            
+            // Apply velocity
+            obj.x += obj.vx;
+            obj.y += obj.vy;
+
+            // Floor collision
+            if (obj.y + obj.el.offsetHeight > labRect.height) {
+                obj.y = labRect.height - obj.el.offsetHeight;
+                obj.vy *= -0.3;
+                obj.vx *= 0.9;
+            }
+            // Wall collisions
+            if (obj.x < 0 || obj.x + obj.el.offsetWidth > labRect.width) {
+                obj.x = Math.max(0, Math.min(obj.x, labRect.width - obj.el.offsetWidth));
+                obj.vx *= -0.5;
             }
             
-            if(obj.isInBeaker) objectInBeaker = obj;
+            // --- Update State & Position ---
+            if(obj.isOnScale) isAnyObjectOnScale = true;
 
-            obj.el.style.left = `${obj.x}px`;
-            obj.el.style.top = `${obj.y}px`;
+            obj.el.style.transform = `translate(${obj.x}px, ${obj.y}px)`;
         });
-        
-        if(objectInBeaker) {
-            const obj = objectInBeaker;
-            const objRect = obj.el.getBoundingClientRect();
-            const beakerRect = beakerEl.getBoundingClientRect();
-            const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
-            const submergedHeight = Math.max(0, objRect.bottom - waterSurfaceY);
-            const submergedRatio = Math.min(1, submergedHeight / objRect.height);
-            totalDisplacedVolume = obj.data.volume * submergedRatio;
-            
-            showWaterLevelMarker(initialWaterLevel, initialWaterLevel + totalDisplacedVolume);
-        } else {
-            hideWaterLevelMarker();
-        }
-        
-        updateWaterLevel(totalDisplacedVolume);
-        
-        const objOnScale = objects.find(o => o.isOnScale);
-        document.getElementById('scale-readout').textContent = objOnScale ? objOnScale.data.mass.toFixed(2) : '0.00';
-        
+
+        // --- Update UI ---
+        updateScaleReadout(isAnyObjectOnScale);
+        updateWaterLevel();
+
         window.animationFrameId = requestAnimationFrame(gameLoop);
     }
-    
-    function showWaterLevelMarker(initial, current) {
-        hideWaterLevelMarker();
-        
-        initialWaterLevelMarker = createLabElement('initial-marker', '', 'water-level-marker');
-        initialWaterLevelMarker.style.bottom = `${initial * waterHeightPerML}px`;
-        initialWaterLevelMarker.setAttribute('data-volume', `${initial.toFixed(0)} mL`);
-        beakerEl.appendChild(initialWaterLevelMarker);
-    }
-    
-    function hideWaterLevelMarker() {
-        if (initialWaterLevelMarker) {
-            initialWaterLevelMarker.remove();
-            initialWaterLevelMarker = null;
-        }
-    }
-    
-    function isOverBeaker(obj) {
-        const beakerRect = beakerEl.getBoundingClientRect();
-        const objRect = obj.el.getBoundingClientRect();
-        return objRect.right > beakerRect.left && objRect.left < beakerRect.right;
-    }
 
-    function handleBoundaries(obj, labRect) {
-        const objRect = obj.el.getBoundingClientRect();
-        if (obj.x < 0) { obj.x = 0; obj.vx *= -0.5; }
-        if (obj.x + objRect.width > labRect.width) { obj.x = labRect.width - objRect.width; obj.vx *= -0.5; }
-        if (obj.y < 0) { obj.y = 0; obj.vy = 0; }
-        if (obj.y + objRect.height > labRect.height) { 
-            obj.y = labRect.height - objRect.height;
-            obj.vy *= -0.2;
+    function handleBeakerInteraction(obj, objRect, beakerRect, waterRect) {
+        obj.isInBeaker = true;
+        
+        // Buoyancy and water physics
+        const liquidTop = waterRect.top;
+        const submergedHeight = Math.max(0, Math.min(objRect.height, objRect.bottom - liquidTop));
+        const submergedRatio = submergedHeight / objRect.height;
+        const displacedVolume = obj.data.volume * submergedRatio;
+
+        if (submergedRatio > 0) {
+            // Buoyant force = density of liquid * volume of displaced liquid * g
+            // Simplified for this sim: buoyant force opposes gravity
+            const buoyantForce = (displacedVolume / obj.data.volume) * (liquidDensity / (obj.data.mass / obj.data.volume)) * gravity * 1.5;
+            obj.vy -= buoyantForce;
+            obj.vy *= waterDrag; // water resistance
             obj.vx *= 0.9;
         }
-    }
-    
-    function handleScaleCollision(obj, scaleRect, labRect) {
-        const objRect = obj.el.getBoundingClientRect();
-        if (obj.vy >= 0 && 
-            objRect.bottom > scaleRect.top && 
-            objRect.top < scaleRect.bottom &&
-            objRect.right > scaleRect.left && 
-            objRect.left < scaleRect.right) {
-                
-            obj.y = (scaleRect.top - labRect.top) - objRect.height;
+
+        // Beaker wall collisions
+        const leftBound = beakerRect.left - labRect.left;
+        const rightBound = beakerRect.right - labRect.left - obj.el.offsetWidth;
+        if (obj.x < leftBound || obj.x > rightBound) {
+            obj.x = Math.max(leftBound, Math.min(obj.x, rightBound));
+            obj.vx *= -0.5;
+        }
+        
+        // Push object up if it hits the bottom of the beaker
+        if (obj.y + obj.el.offsetHeight > beakerRect.bottom - labRect.top) {
+            obj.y = beakerRect.bottom - labRect.top - obj.el.offsetHeight;
             obj.vy = 0;
-            obj.vx *= 0.8;
-            obj.isOnScale = true;
         }
     }
 
-    function handleBeakerPhysics(obj, beakerRect, labRect) {
-        const objRect = obj.el.getBoundingClientRect();
-        
-        if (obj.x + objRect.width > beakerRect.right - labRect.left) { 
-            obj.x = beakerRect.right - labRect.left - objRect.width; 
-            obj.vx *= -0.5; 
-        }
-        if (obj.x < beakerRect.left - labRect.left) { 
-            obj.x = beakerRect.left - labRect.left; 
-            obj.vx *= -0.5; 
-        }
-        
-        const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
-        if (objRect.bottom > waterSurfaceY) {
-            obj.isInBeaker = true;
-            
-            const submergedRatio = Math.min(1, (objRect.bottom - waterSurfaceY) / objRect.height);
-            const displacedVolume = obj.data.volume * submergedRatio;
-            
-            const buoyancyForce = liquidDensity * displacedVolume;
-            const gravitationalForce = obj.data.mass;
-
-            const netForce = (buoyancyForce - gravitationalForce);
-            const acceleration = (netForce / obj.data.mass) * 0.1; 
-
-            obj.vy -= acceleration;
-            obj.vy *= waterDrag;
-            obj.vx *= waterDrag;
-
-        } else {
-            obj.isInBeaker = false;
-        }
-
-        if (objRect.bottom > beakerRect.bottom) {
-            obj.y = (beakerRect.bottom - labRect.top) - objRect.height;
-            if (obj.vy > 0) obj.vy *= -0.1;
-        }
-    }
-
-    function updateWaterLevel(displacedVolume = 0) {
-        const volumeReadout = document.getElementById('volume-readout');
-        const newTotalVolume = initialWaterLevel + displacedVolume;
-        
-        const isOverflowing = newTotalVolume > beakerCapacity;
-        waterEl.classList.toggle('overflow', isOverflowing);
-        overflowWarning.classList.toggle('hidden', !isOverflowing);
-
-        const height = Math.min(300, newTotalVolume * waterHeightPerML);
-        waterEl.style.height = `${height}px`;
-        volumeReadout.textContent = isOverflowing ? '> OVERFLOW' : newTotalVolume.toFixed(1);
-    }
-    
-    function saveTableData() {
-        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
-            const rowId = row.id;
-            if (!sessionData[rowId]) sessionData[rowId] = {};
-            
-            const massCell = row.querySelector('[data-col="mass"]');
-            const volumeCell = row.querySelector('[data-col="volume"]');
-            const densityCell = row.querySelector('[data-col="density"]');
-        const idSelect = row.querySelector('[data-col="identification"]');
-            
-        if (massCell) sessionData[rowId].mass = massCell.textContent;
-        if (volumeCell) sessionData[rowId].volume = volumeCell.textContent;
-        if (densityCell) sessionData[rowId].density = densityCell.textContent;
-        if (idSelect) sessionData[rowId].identification = idSelect.value;
+    function updateScaleReadout() {
+        let totalMass = 0;
+        objects.forEach(obj => {
+            if (obj.isOnScale) {
+                totalMass += obj.data.mass;
+            }
         });
+        document.getElementById('scale-readout').textContent = totalMass.toFixed(2);
     }
 
-    function restoreTableData(savedData) {
-        document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
-            const rowId = row.id;
-            const data = savedData[rowId];
-            if (!data) return;
+    function updateWaterLevel() {
+        let totalDisplacedVolume = 0;
+        const labRect = labArea.getBoundingClientRect();
+        
+        // Remove previous markers
+        if(initialWaterLevelMarker) initialWaterLevelMarker.remove();
+        document.querySelectorAll('.water-level-marker.displaced').forEach(m => m.remove());
 
+        objects.forEach(obj => {
+            if (obj.isInBeaker) {
+                const objRect = obj.el.getBoundingClientRect();
+                const waterSurfaceY = waterEl.getBoundingClientRect().top;
+                const submergedHeight = Math.max(0, objRect.bottom - waterSurfaceY);
+                if (submergedHeight > 0) {
+                    const submergedRatio = Math.min(1, submergedHeight / objRect.height);
+                    totalDisplacedVolume += obj.data.volume * submergedRatio;
+                }
+            }
+        });
+        
+        const currentWaterVolume = initialWaterLevel + totalDisplacedVolume;
+        const waterHeight = Math.min(beakerCapacity, currentWaterVolume) * waterHeightPerML;
+        
+        waterEl.style.height = `${waterHeight}px`;
+        
+        const isOverflowing = currentWaterVolume > beakerCapacity;
+        overflowWarning.style.display = isOverflowing ? 'block' : 'none';
+        waterEl.classList.toggle('overflow', isOverflowing);
+        
+        const volumeReadout = document.getElementById('volume-readout');
+        const finalVolume = isOverflowing ? beakerCapacity : currentWaterVolume;
+        volumeReadout.textContent = finalVolume.toFixed(1);
+        volumeReadout.parentElement.style.color = isOverflowing ? '#ef4444' : '#ffffff';
+
+        // Add water level markers
+        const beakerRect = beakerEl.getBoundingClientRect();
+        const waterSurfaceTop = beakerRect.bottom - waterHeight;
+        
+        // Initial level marker
+        const initialHeight = initialWaterLevel * waterHeightPerML;
+        const initialTop = beakerRect.bottom - initialHeight;
+        initialWaterLevelMarker = createWaterLevelMarker(initialTop - labRect.top, `Initial: ${initialWaterLevel.toFixed(1)}mL`);
+        initialWaterLevelMarker.style.backgroundColor = '#4338ca';
+        labArea.appendChild(initialWaterLevelMarker);
+        
+        // Final level marker (only if there's displacement)
+        if (totalDisplacedVolume > 0.1) {
+            const finalMarker = createWaterLevelMarker(waterSurfaceTop - labRect.top, `Final: ${finalVolume.toFixed(1)}mL`);
+            finalMarker.classList.add('displaced');
+            labArea.appendChild(finalMarker);
+        }
+    }
+
+    function createWaterLevelMarker(topPosition, label) {
+        const marker = document.createElement('div');
+        marker.className = 'water-level-marker';
+        marker.style.top = `${topPosition}px`;
+        marker.dataset.volume = label;
+        return marker;
+    }
+
+    function restoreTableData(data) {
+        if (!data) return;
+        Object.keys(data).forEach(rowId => {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+
+            const rowData = data[rowId];
             const massCell = row.querySelector('[data-col="mass"]');
             const volumeCell = row.querySelector('[data-col="volume"]');
             const densityCell = row.querySelector('[data-col="density"]');
             const idSelect = row.querySelector('[data-col="identification"]');
 
-            if (massCell && data.mass) massCell.textContent = data.mass;
-            if (volumeCell && data.volume) volumeCell.textContent = data.volume;
-            if (densityCell && data.density) densityCell.textContent = data.density;
-            if (idSelect && data.identification) idSelect.value = data.identification;
+            if (massCell && rowData.mass) massCell.textContent = rowData.mass;
+            if (volumeCell && rowData.volume) volumeCell.textContent = rowData.volume;
+            if (densityCell && rowData.density) densityCell.textContent = rowData.density;
+            if (idSelect && rowData.identification) idSelect.value = rowData.identification;
         });
     }
 
-
-    function createLabElement(id, innerHTML = '', className = '', type = 'div') {
+    function createLabElement(id, innerHTML, classNames, type = 'div') {
         const el = document.createElement(type);
         if (id) el.id = id;
-        el.className = className;
-        el.innerHTML = innerHTML;
+        if (classNames) el.className = classNames;
+        if (innerHTML) el.innerHTML = innerHTML;
         return el;
     }
 
+    // --- Initial Load ---
     (async () => {
         const isImported = await handleImport();
         if (!isImported) {
@@ -1236,5 +1270,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     })();
 });
 </script>
+
 </body>
 </html>
