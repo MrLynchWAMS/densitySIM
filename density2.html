@@ -6,7 +6,6 @@
   <title>Interactive Density Lab</title>
   <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎈&lt;/text&gt;&lt;/svg%3E">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; touch-action: none; }
@@ -28,14 +27,13 @@
     [contenteditable] { outline: 2px dashed transparent; transition: outline-color 0.2s, background-color 0.2s; border-radius: 4px; padding: 2px 4px; min-width: 30px; }
     [contenteditable]:focus { outline-color: #38bdf8; background-color: #eff6ff; }
     [contenteditable]:hover { background-color: #f0f9ff; }
+    [contenteditable].cell-flash { background-color: #bbf7d0; }
     select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
     .feedback-icon { display: inline-block; font-size: 1.2em; animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    .highlight-scale { animation: pulse 1.5s ease-in-out infinite; }
-    .highlight-beaker { animation: pulse 1.5s ease-in-out infinite; animation-delay: 0.3s; }
-    .water-level-marker { position: absolute; right: -30px; width: 25px; height: 2px; background-color: #1e40af; opacity: 0.7; pointer-events: none; }
-    .water-level-marker::after { content: attr(data-volume); position: absolute; right: 30px; top: -8px; font-size: 11px; color: #1e40af; font-weight: bold; white-space: nowrap; }
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+    #scale-readout, #volume-readout-bg { cursor: pointer; }
     #help-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
     #help-modal.show { display: flex; }
     .modal-content { background: white; border-radius: 1rem; padding: 2rem; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
@@ -49,7 +47,7 @@
     <p class="text-lg text-slate-600 mt-2">Measure, calculate, and discover the density of various materials!</p>
     <div class="mt-4 flex justify-center items-center gap-4">
       <label for="difficulty-select" class="font-semibold text-slate-700">Difficulty Level:</label>
-      <select id="difficulty-select" class="px-4 py-2 w-56 text-base border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg focus:shadow-lg transition-all duration-200 ease-in-out">
+      <select id="difficulty-select" class="px-4 py-2 w-80 text-base border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg focus:shadow-lg transition-all duration-200 ease-in-out">
         <option value="1" selected>Level 1 - Beginner</option>
         <option value="2">Level 2 - Intermediate</option>
         <option value="3">Level 3 - Advanced</option>
@@ -61,33 +59,41 @@
 
   <div class="flex-grow grid grid-cols-1 lg:grid-cols-[1.5fr_3fr_2.5fr] gap-8 min-h-0">
     <!-- Left Panel -->
-    <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col">
+    <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col overflow-y-auto">
       <h2 class="text-2xl font-bold mb-4 border-b pb-2">Materials</h2>
 
       <!-- Calculator -->
       <div id="calculator" class="mb-4 p-3 bg-slate-50 rounded-lg border-2 border-slate-200">
-        <div id="calc-display" class="bg-slate-800 text-white text-right rounded-md p-2 mb-3 font-mono text-xl h-12 flex items-center justify-end overflow-x-auto">0</div>
-        <div id="calc-buttons" class="grid grid-cols-4 gap-2 text-slate-700 font-bold">
-          <button class="py-2 bg-red-200 hover:bg-red-300 rounded-md" data-value="clear">C</button>
-          <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md" data-value="(">(</button>
-          <button class="py-2 bg-slate-200 hover:bg-slate-300 rounded-md" data-value=")">)</button>
-          <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-value="/">÷</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="7">7</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="8">8</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="9">9</button>
-          <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-value="*">×</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="4">4</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="5">5</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="6">6</button>
-          <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-value="-">−</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="1">1</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="2">2</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="3">3</button>
-          <button class="py-2 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-value="+">+</button>
-          <button class="col-span-2 py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value="0">0</button>
-          <button class="py-2 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-value=".">.</button>
-          <button class="py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md" data-value="=">=</button>
+        <input id="calc-input" type="text" autocomplete="off" spellcheck="false" aria-label="Calculator"
+               placeholder="Type or tap, e.g. 27 ÷ 10"
+               class="w-full bg-slate-800 text-white text-right rounded-md p-2 font-mono text-xl h-12 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        <div id="calc-preview" class="text-right text-sm font-mono text-slate-500 h-5 mt-1"></div>
+        <div id="calc-buttons" class="grid grid-cols-4 gap-1.5 text-slate-700 font-bold mt-1">
+          <button class="py-1.5 bg-red-200 hover:bg-red-300 rounded-md" data-action="clear" title="Clear (Esc)">C</button>
+          <button class="py-1.5 bg-slate-200 hover:bg-slate-300 rounded-md" data-action="back" title="Backspace">⌫</button>
+          <button class="py-1.5 bg-slate-200 hover:bg-slate-300 rounded-md" data-action="ans" title="Insert last answer">Ans</button>
+          <button class="py-1.5 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-key="÷">÷</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="7">7</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="8">8</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="9">9</button>
+          <button class="py-1.5 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-key="×">×</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="4">4</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="5">5</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="6">6</button>
+          <button class="py-1.5 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-key="−">−</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="1">1</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="2">2</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="3">3</button>
+          <button class="py-1.5 bg-orange-400 hover:bg-orange-500 text-white rounded-md" data-key="+">+</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key="0">0</button>
+          <button class="py-1.5 bg-white hover:bg-slate-100 rounded-md border border-slate-200" data-key=".">.</button>
+          <button class="py-1.5 bg-slate-200 hover:bg-slate-300 rounded-md" data-key="(">(</button>
+          <button class="py-1.5 bg-slate-200 hover:bg-slate-300 rounded-md" data-key=")">)</button>
+          <button class="col-span-2 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md" data-action="equals" title="Enter">=</button>
+          <button class="col-span-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md text-sm" data-action="use" title="Put the answer in the table cell you last clicked">↳ Use in cell</button>
         </div>
+        <div id="calc-history" class="mt-2 text-xs font-mono text-slate-500 space-y-0.5"></div>
+        <p class="text-[11px] text-slate-400 mt-2">Type or tap · Enter = · Esc clears · Click a lab readout to insert its number</p>
       </div>
 
       <div class="space-y-4 flex-grow">
@@ -101,7 +107,7 @@
         </div>
       </div>
 
-      <button id="reset-btn" class="mt-auto w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">🔄 New Challenge</button>
+      <button id="reset-btn" class="mt-4 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">🔄 New Challenge</button>
     </div>
 
     <!-- Center Panel -->
@@ -111,22 +117,17 @@
     </div>
 
     <!-- Right Panel -->
-    <div class="bg-white p-6 rounded-2xl shadow-lg overflow-y-auto">
+    <div id="results-panel" class="bg-white p-6 rounded-2xl shadow-lg overflow-y-auto">
       <h2 class="text-2xl font-bold mb-4 border-b pb-2">Lab Results</h2>
 
       <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
         <h3 class="font-bold text-blue-900 mb-2">📋 Procedure:</h3>
         <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-          <li>Drag object to <strong>scale</strong> → record mass</li>
-          <li>Drag object to <strong>beaker</strong> → record volume change</li>
+          <li>Drag one object to the <strong>scale</strong> → record mass</li>
+          <li>Drag it to the <strong>beaker</strong> → record volume (new level − starting level)</li>
           <li><strong>Calculate</strong> density: D = M ÷ V</li>
-          <li>Compare mystery densities to known materials</li>
+          <li>Compare mystery densities to known materials, then press <strong>Check</strong></li>
         </ol>
-      </div>
-
-      <div id="submission-info" class="hidden mb-4 p-3 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
-        <h3 class="font-bold text-indigo-900 mb-2">Submission History:</h3>
-        <div id="submission-list" class="text-sm text-indigo-800 space-y-2"></div>
       </div>
 
       <div class="bg-amber-50 border-2 border-amber-300 rounded-lg p-3 mb-4">
@@ -145,63 +146,91 @@
           </table>
         </div>
 
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="font-semibold flex items-center gap-4">Mystery Objects</h3>
-          <div id="score-display" class="font-bold text-lg text-slate-800 pr-2 hidden"></div>
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold">Mystery Objects</h3>
+            <div id="score-display" class="font-bold text-sm text-slate-800 pr-2 text-right hidden"></div>
+          </div>
+          <table class="w-full text-left text-sm">
+            <thead class="text-xs text-slate-600 uppercase bg-slate-50">
+            <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th class="p-2">Check</th></tr>
+            </thead>
+            <tbody id="mystery-results-body"></tbody>
+          </table>
         </div>
-        <table class="w-full text-left text-sm">
-          <thead class="text-xs text-slate-600 uppercase bg-slate-50">
-          <tr><th class="p-2">Object</th><th class="p-2">Mass (g)</th><th class="p-2">Volume (mL)</th><th class="p-2">Density (g/mL)</th><th class="p-2">Identification</th><th class="p-2">Result</th></tr>
-          </thead>
-          <tbody id="mystery-results-body"></tbody>
-        </table>
-        <div class="flex gap-2 mt-4">
-          <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
-          <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export Results</button>
+
+        <div>
+          <button id="submit-assignment-btn" class="w-full text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📨 Submit Results to Assignment</button>
+          <p id="submit-status" class="text-sm mt-2 text-center hidden"></p>
         </div>
-        <button id="submit-assignment-btn" class="w-full mt-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📨 Submit to Assignment</button>
-        <p id="submit-status" class="text-sm mt-2 text-center hidden"></p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Export Modal -->
-<div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[10000]">
-  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-lg w-full m-4">
-    <h2 class="text-2xl font-bold mb-4">🔗 Your Shareable Link</h2>
-    <p class="text-slate-600 mb-4">Copy this link to save your progress or share your completed lab results with your teacher.</p>
-    <textarea id="export-link" class="w-full p-3 border-2 border-slate-300 rounded-lg bg-slate-50 text-sm" readonly rows="4"></textarea>
-    <div class="mt-6 flex justify-end gap-4">
-      <button id="copy-link-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition-transform transform hover:scale-105">Copy Link</button>
-      <button id="close-export-modal-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-5 rounded-lg">Close</button>
+<!-- Help Modal -->
+<div id="help-modal">
+  <div class="modal-content">
+    <h2 class="text-2xl font-bold mb-3">How to use the Density Lab</h2>
+    <ol class="list-decimal list-inside space-y-2 text-slate-700 text-sm">
+      <li>Drag an object onto the <strong>scale</strong> to read its mass. Keep only one object on the scale at a time.</li>
+      <li>Drag the same object into the <strong>beaker</strong>. Volume = new water level − starting water level.</li>
+      <li><strong>Floating objects</strong> only displace part of their volume. Keep dragging them under the water to measure their full volume.</li>
+      <li>Calculate density = mass ÷ volume. Enter your mass, volume, and density in the table.</li>
+      <li>Compare your mystery density to the known materials, choose the material, and press <strong>Check</strong>.</li>
+    </ol>
+    <div class="mt-4 p-3 bg-amber-50 border-2 border-amber-200 rounded-lg text-sm text-amber-900">
+      <strong>Scoring:</strong> <span id="help-scoring"></span>
     </div>
+    <div class="mt-4 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700">
+      <strong>Calculator tips:</strong> type directly or tap the buttons · Enter evaluates · Esc clears · click the scale or volume readout to insert its number · "Use in cell" puts the answer in the table cell you last clicked · Enter in a table cell jumps to the next one.
+    </div>
+    <p class="mt-4 text-sm text-slate-600">When you are ready, press <strong>Submit Results to Assignment</strong>. Each level keeps its own score, and every submission includes all the levels you have worked on.</p>
+    <div class="mt-4 text-right"><button id="close-help-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg">Got it</button></div>
   </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  // Constants you can tune
+/**
+ * simData schema sent to the parent (IterātED) with action "SIM_COMPLETE".
+ * Every submission is cumulative: it contains all levels the student has attempted.
+ *
+ * Flat values: summary, overall_score_pct, levels_attempted, levels_completed,
+ *   total_attempts, total_minutes_elapsed, objects_flagged_for_review, submitted_at,
+ *   level_<n>_score_pct (one per attempted level)
+ * Tables (arrays of flat objects):
+ *   level_summary      - one row per level
+ *   mystery_results    - one row per mystery object per level (final state + measurement diagnostics)
+ *   attempt_log        - one row per Check press (what was entered and why it was right/wrong)
+ *   known_measurements - one row per known material per level (student's measurements vs actual)
+ *
+ * Tunable scoring constants are in the "Teacher-tunable settings" block below.
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  // ===== Teacher-tunable settings =====
+  const ATTEMPT_CREDIT = [1, 0.75, 0.5, 0.25]; // credit for a correct answer on attempt 1, 2, 3, 4+
+  const ATTEMPT_COOLDOWN_MS = 5000;            // pause after a wrong answer (0 = no pause)
+  const TOLERANCE = 0.05;                      // 5% tolerance for mass, volume, density checks
+  const REVIEW_ATTEMPT_THRESHOLD = 3;          // objects needing this many attempts get flagged for review
+  const MAX_ATTEMPT_LOG_ROWS = 300;            // keeps simData well under the ~50KB limit
+  const PARENT_ORIGIN = "https://custom.scienceclass.rocks";
+
+  // ===== Physics constants =====
   const gravity = 0.5;
   const beakerCapacity = 300;
   const waterHeightPerML = 300 / beakerCapacity;
+  const waterLinearDrag = 0.90;
+  const surfaceDamping = 0.70;
+  const maxVyInWater = 8;
+  const maxVyOverall = 18;
+  const scaleLatchBufferY = 14;
+  const scaleLatchBufferX = 6;
+  const scaleReleaseFrames = 6;
+  const scaleStableThreshold = 6;
 
-  // Water-only damping and constraints
-  const waterLinearDrag = 0.90; // in-water drag
-  const surfaceDamping = 0.70;  // extra damping when partially submerged and buoyant
-  const maxVyInWater = 8;       // cap in-water vertical speed
-  const maxVyOverall = 18;      // global vertical speed cap (prevents tunneling)
-
-  // Scale readout stabilization
-  const scaleLatchBufferY = 14; // pixels above platform to latch
-  const scaleLatchBufferX = 6;  // pixels extra horizontal tolerance
-  const scaleReleaseFrames = 6; // frames outside zone before unlatch
-  const scaleStableThreshold = 6; // frames latched before we trust the readout
-
-  // Difficulty mystery counts (chosen from level's known list)
   const MYSTERY_COUNT = { 1: 2, 2: 3, 3: 4, 4: 5 };
+  const LEVEL_NAMES = { 1: 'Level 1 - Beginner', 2: 'Level 2 - Intermediate', 3: 'Level 3 - Advanced', 4: 'Challenge Mode' };
 
-  // Materials
   const KNOWN_MATERIALS_REPO = [
     { id: 'Gold', density: 19.3, color: 'bg-yellow-400', baseVolume: 5, shape: 'rounded-sm', size: 'w-8 h-8' },
     { id: 'Lead', density: 11.34, color: 'bg-gray-600', baseVolume: 10, shape: 'rounded-lg', size: 'w-10 h-10' },
@@ -222,7 +251,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'AirBubble', name: 'Air Bubble', density: 0.001, color: 'bg-blue-50', baseVolume: 35, shape: 'rounded-full', size: 'w-12 h-12' }
   ];
 
-  // Simple style palette for mystery objects
   const MYSTERY_STYLE_POOL = [
     { color: 'bg-purple-400', shape: 'rounded-lg', size: 'w-12 h-12' },
     { color: 'bg-teal-400', shape: 'rounded-md', size: 'w-16 h-8' },
@@ -243,37 +271,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     4: { knownMaterials: ['Copper', 'Glass', 'Wax', 'Styrofoam', 'AirBubble'], mysteryCount: MYSTERY_COUNT[4], measurementError: 0.02 }
   };
 
-  // DOM refs
+  // Feedback codes -> short phrases used in the teacher summary
+  const ISSUE_LABELS = {
+    mass_reading: 'mass-reading errors',
+    volume_reading: 'volume-reading errors',
+    density_calculation: 'density-calculation errors',
+    wrong_material: 'right density but wrong material',
+    density_mismatch: 'density off despite consistent work'
+  };
+
+  // ===== DOM refs =====
   const labArea = document.getElementById('lab-area');
   const knownObjectContainer = document.getElementById('known-object-container');
   const mysteryObjectContainer = document.getElementById('mystery-object-container');
   const knownResultsBody = document.getElementById('known-results-body');
   const mysteryResultsBody = document.getElementById('mystery-results-body');
+  const resultsPanel = document.getElementById('results-panel');
   const resetBtn = document.getElementById('reset-btn');
   const overflowWarning = document.getElementById('overflow-warning');
   const difficultySelect = document.getElementById('difficulty-select');
-  const checkAnswersBtn = document.getElementById('check-answers-btn');
   const helpBtn = document.getElementById('help-btn');
   const measurementHint = document.getElementById('measurement-hint');
-  const exportBtn = document.getElementById('export-btn');
   const submitAssignmentBtn = document.getElementById('submit-assignment-btn');
+  const submitStatus = document.getElementById('submit-status');
+  const scoreDisplay = document.getElementById('score-display');
 
+  // ===== State =====
   let objects = [];
   let draggedObject = null;
   let liquidDensity = 1.0;
   let initialWaterLevel = 100;
-  let currentDifficulty = 2;
-  let sessionData = {};
-  let initialWaterLevelMarker = null;
-  let score = 0;
-
-  // scale readout latch
+  let currentDifficulty = 1;
   let lastStableScaleMass = 0;
-
-  // dynamic elements created later
   let scaleEl, beakerEl, waterEl, liquidDensitySlider, initialWaterSlider;
 
-  // Global listeners
+  let runId = 0;                 // increments every time a level/challenge is generated
+  let runStartedAt = Date.now();
+  let lastAttemptAt = null;
+  let runAttempts = [];          // attempt log for the current run
+  let levelResults = {};         // latest attempted run per level (snapshots)
+  const levelRunIds = {};        // level -> Set of run ids that had at least one attempt
+  let hasSubmitted = false;
+  let lastSubmittedAt = null;
+  let unsubmittedProgress = false;
+
+  // ===== IterātED bridge =====
+  // The parent wrapper handles all database operations. No Firebase/auth code here.
+  function submitSimulation(simData = null) {
+    const message = { action: "SIM_COMPLETE" };
+    if (simData !== null && simData !== undefined) message.simData = simData;
+    window.parent.postMessage(message, PARENT_ORIGIN);
+  }
+
+  // ===== Global listeners =====
   document.addEventListener('mousedown', startDrag);
   document.addEventListener('touchstart', startDrag, { passive: false });
   document.addEventListener('mousemove', drag);
@@ -281,231 +331,220 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('mouseup', endDrag);
   document.addEventListener('touchend', endDrag);
 
-  resetBtn.addEventListener('click', () => {
-    if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
-    init(); gameLoop();
-  });
-  difficultySelect.addEventListener('change', () => {
-    if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
-    init(); gameLoop();
-  });
-  checkAnswersBtn.addEventListener('click', checkAnswers);
-  exportBtn.addEventListener('click', handleExport);
+  resetBtn.addEventListener('click', () => { startNewRun(); });
+  difficultySelect.addEventListener('change', () => { startNewRun(); });
   submitAssignmentBtn.addEventListener('click', handleSubmitToAssignment);
-
-  document.getElementById('close-export-modal-btn').addEventListener('click', () => {
-    document.getElementById('export-modal').style.display = 'none';
-  });
-  document.getElementById('copy-link-btn').addEventListener('click', () => {
-    const linkText = document.getElementById('export-link'); linkText.select();
-    document.execCommand('copy'); alert('Link copied to clipboard!');
+  mysteryResultsBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.check-row-btn');
+    if (btn) checkMysteryRow(btn.closest('tr'));
   });
 
-  // Calculator
-  const calcDisplay = document.getElementById('calc-display');
-  const calcButtons = document.getElementById('calc-buttons');
-  calcButtons.addEventListener('click', (e) => {
-    if (e.target.tagName !== 'BUTTON') return;
-    const value = e.target.dataset.value;
-    const displaySymbol = e.target.textContent;
-    let currentDisplay = calcDisplay.textContent;
-    if (currentDisplay === 'Error' || (currentDisplay === '0' && value !== '.' && value !== '(')) currentDisplay = '';
-    switch (value) {
-      case 'clear': currentDisplay = '0'; break;
-      case '=':
-        try {
-          const expression = currentDisplay.replace(/×/g, '*').replace(/÷/g, '/');
-          const result = new Function('return ' + expression)();
-          currentDisplay = (isNaN(result) || !isFinite(result)) ? 'Error' : result.toFixed(2);
-        } catch { currentDisplay = 'Error'; }
-        break;
-      case '.':
-        const lastNumber = currentDisplay.split(/[\+\-\×\÷\(\)]/).pop();
-        if (!lastNumber.includes('.')) currentDisplay += displaySymbol;
-        break;
-      default: currentDisplay += displaySymbol; break;
-    }
-    calcDisplay.textContent = currentDisplay;
-  });
-
-  helpBtn.addEventListener('click', () => {
-    document.getElementById('help-modal').classList.add('show');
-  });
+  helpBtn.addEventListener('click', () => document.getElementById('help-modal').classList.add('show'));
   document.addEventListener('click', (e) => {
     const modal = document.getElementById('help-modal');
-    if (modal && (e.target.id === 'help-modal' || e.target.id === 'close-help' || e.target.id === 'close-help-btn')) {
-      modal.classList.remove('show');
+    if (modal && (e.target.id === 'help-modal' || e.target.id === 'close-help-btn')) modal.classList.remove('show');
+  });
+  document.getElementById('help-scoring').textContent =
+    `each mystery object earns full credit if identified on the first try. Credit per correct answer drops with extra attempts: ` +
+    `${ATTEMPT_CREDIT.map((c, i) => `try ${i + 1}${i === ATTEMPT_CREDIT.length - 1 ? '+' : ''} = ${Math.round(c * 100)}%`).join(', ')}.` +
+    (ATTEMPT_COOLDOWN_MS > 0 ? ` After a wrong answer there is a ${Math.round(ATTEMPT_COOLDOWN_MS / 1000)}-second pause, so re-check your measurements instead of guessing.` : '') +
+    ` Each level has its own score.`;
+
+  function startNewRun() {
+    storeCurrentLevel();
+    if (window.animationFrameId) cancelAnimationFrame(window.animationFrameId);
+    init();
+    gameLoop();
+  }
+
+  // ===== Calculator =====
+  const calcInput = document.getElementById('calc-input');
+  const calcPreview = document.getElementById('calc-preview');
+  const calcButtons = document.getElementById('calc-buttons');
+  const calcHistoryEl = document.getElementById('calc-history');
+  const finePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+  let calcJustEvaluated = false;
+  let calcHistory = [];
+  let calcAns = null;
+  let lastCell = null;
+
+  function fmt(n) {
+    if (n !== 0 && Math.abs(n) < 1e-4) return n.toFixed(8).replace(/0+$/, '');
+    return String(parseFloat(n.toPrecision(6)));
+  }
+
+  // Safe expression parser: + − × ÷ ( ) and decimals. No eval.
+  function evalExpression(raw) {
+    let s = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').replace(/\s+/g, '');
+    if (!s) return null;
+    const open = (s.match(/\(/g) || []).length, close = (s.match(/\)/g) || []).length;
+    if (close > open) return null;
+    s += ')'.repeat(open - close);
+    let i = 0;
+    const peek = () => s[i];
+    function expr() { let v = term(); while (peek() === '+' || peek() === '-') { const op = s[i++]; const r = term(); v = op === '+' ? v + r : v - r; } return v; }
+    function term() { let v = factor(); while (peek() === '*' || peek() === '/') { const op = s[i++]; const r = factor(); v = op === '*' ? v * r : v / r; } return v; }
+    function factor() {
+      if (peek() === '-') { i++; return -factor(); }
+      if (peek() === '+') { i++; return factor(); }
+      if (peek() === '(') { i++; const v = expr(); if (peek() !== ')') throw new Error('paren'); i++; return v; }
+      const m = /^(\d+\.?\d*|\.\d+)/.exec(s.slice(i));
+      if (!m) throw new Error('num');
+      i += m[0].length;
+      return parseFloat(m[0]);
+    }
+    try {
+      const v = expr();
+      return (i === s.length && isFinite(v)) ? v : null;
+    } catch { return null; }
+  }
+
+  function sanitizeCalcInput() {
+    const raw = calcInput.value;
+    const pos = calcInput.selectionStart ?? raw.length;
+    let out = '', newPos = 0;
+    for (let i = 0; i < raw.length; i++) {
+      let ch = raw[i];
+      if (ch === '*' || ch === 'x' || ch === 'X') ch = '×';
+      else if (ch === '/') ch = '÷';
+      else if (ch === '-') ch = '−';
+      else if (ch === ',') ch = '.';
+      if (/[0-9.+−×÷() ]/.test(ch)) { out += ch; if (i < pos) newPos++; }
+    }
+    if (out !== raw) { calcInput.value = out; calcInput.setSelectionRange(newPos, newPos); }
+  }
+
+  function updateCalcPreview() {
+    const raw = calcInput.value;
+    if (!/[+−×÷()]/.test(raw)) { calcPreview.textContent = ''; return; }
+    const v = evalExpression(raw);
+    calcPreview.textContent = v === null ? '' : `= ${fmt(v)}`;
+    calcPreview.className = 'text-right text-sm font-mono text-slate-500 h-5 mt-1';
+  }
+
+  function calcInsert(text) {
+    const isOp = /^[+−×÷]$/.test(text);
+    if (calcJustEvaluated && !isOp) calcInput.value = '';
+    calcJustEvaluated = false;
+    const focused = document.activeElement === calcInput;
+    const start = focused ? calcInput.selectionStart : calcInput.value.length;
+    const end = focused ? calcInput.selectionEnd : calcInput.value.length;
+    calcInput.value = calcInput.value.slice(0, start) + text + calcInput.value.slice(end);
+    const caret = start + text.length;
+    calcInput.setSelectionRange(caret, caret);
+    updateCalcPreview();
+  }
+
+  function calcClear() {
+    calcInput.value = ''; calcJustEvaluated = false; calcPreview.textContent = '';
+  }
+
+  function calcEquals() {
+    const raw = calcInput.value.trim();
+    if (!raw) return;
+    const v = evalExpression(raw);
+    if (v === null) { calcPreview.textContent = 'Check the expression'; calcPreview.className = 'text-right text-sm font-mono text-red-500 h-5 mt-1'; return; }
+    const result = fmt(v);
+    if (/[+−×÷()]/.test(raw)) {
+      calcHistory.unshift({ expr: raw, result });
+      calcHistory = calcHistory.slice(0, 4);
+      renderCalcHistory();
+    }
+    calcAns = result;
+    calcInput.value = result;
+    calcJustEvaluated = true;
+    calcPreview.textContent = '';
+  }
+
+  function renderCalcHistory() {
+    calcHistoryEl.innerHTML = '';
+    calcHistory.forEach(h => {
+      const row = document.createElement('div');
+      row.className = 'cursor-pointer hover:text-indigo-600 truncate text-right';
+      row.title = 'Click to reuse this answer';
+      row.textContent = `${h.expr} = ${h.result}`;
+      row.addEventListener('click', () => calcInsert(h.result));
+      calcHistoryEl.appendChild(row);
+    });
+  }
+
+  function calcUseInCell() {
+    const v = evalExpression(calcInput.value);
+    if (v === null) { calcPreview.textContent = 'Nothing to use yet'; calcPreview.className = 'text-right text-sm font-mono text-amber-600 h-5 mt-1'; return; }
+    if (!lastCell || !lastCell.isConnected || lastCell.contentEditable !== 'true') {
+      calcPreview.textContent = 'Click a table cell first'; calcPreview.className = 'text-right text-sm font-mono text-amber-600 h-5 mt-1'; return;
+    }
+    if (/[+−×÷()]/.test(calcInput.value)) calcEquals();
+    lastCell.textContent = fmt(v);
+    lastCell.classList.add('cell-flash');
+    const c = lastCell;
+    setTimeout(() => c.classList.remove('cell-flash'), 600);
+    calcPreview.textContent = '✓ placed in table'; calcPreview.className = 'text-right text-sm font-mono text-emerald-600 h-5 mt-1';
+  }
+
+  calcInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calcEquals(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); calcClear(); return; }
+    if (calcJustEvaluated && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      if (/[0-9.(,]/.test(e.key)) calcInput.value = '';
+      calcJustEvaluated = false;
     }
   });
+  calcInput.addEventListener('input', () => { calcJustEvaluated = false; sanitizeCalcInput(); updateCalcPreview(); });
 
-  // ---- IterātED bridge ----
-  // The parent wrapper handles all database operations. No Firebase/auth code here.
-  function submitSimulation(simData = null) {
-    const message = { action: "SIM_COMPLETE" };
-    if (simData !== null && simData !== undefined) message.simData = simData;
-    const parentOrigin = "https://custom.scienceclass.rocks";
-    window.parent.postMessage(message, parentOrigin);
-  }
+  calcButtons.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    if (action === 'clear') calcClear();
+    else if (action === 'back') { calcJustEvaluated = false; calcInput.value = calcInput.value.slice(0, -1); updateCalcPreview(); }
+    else if (action === 'ans') { if (calcAns !== null) calcInsert(calcAns); }
+    else if (action === 'equals') calcEquals();
+    else if (action === 'use') calcUseInCell();
+    else if (btn.dataset.key) calcInsert(btn.dataset.key);
+    if (finePointer) calcInput.focus(); // keep typing fast on desktop; avoids pop-up keyboards on tablets
+  });
 
-  function buildSimData() {
-    const cell = (row, col) => (row.querySelector(`[data-col="${col}"]`)?.textContent || '').trim();
-    const label = (row) => row.querySelector('td').textContent.trim();
+  // Click a lab readout (scale or volume) to insert its number into the calculator
+  labArea.addEventListener('click', (e) => {
+    const readout = e.target.closest('#scale-readout, #volume-readout-bg');
+    if (!readout) return;
+    const num = parseFloat(readout.textContent);
+    if (isNaN(num) || num === 0) return;
+    calcInsert(String(num));
+    if (finePointer) calcInput.focus();
+  });
 
-    const knownMaterials = [...knownResultsBody.querySelectorAll('tr')].map(row => ({
-      material: label(row),
-      mass_g: cell(row, 'mass'),
-      volume_mL: cell(row, 'volume'),
-      density_g_per_mL: cell(row, 'density')
-    }));
+  // ===== Table cell behavior (numeric only, Enter jumps to next cell) =====
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (t && t.matches && t.matches('[data-col="mass"],[data-col="volume"],[data-col="density"]') && t.contentEditable === 'true') lastCell = t;
+  });
+  resultsPanel.addEventListener('beforeinput', (e) => {
+    if (!e.target.closest('[contenteditable="true"]')) return;
+    if (e.data && /[^0-9.]/.test(e.data)) e.preventDefault();
+    if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') e.preventDefault();
+  });
+  resultsPanel.addEventListener('paste', (e) => {
+    if (!e.target.closest('[contenteditable="true"]')) return;
+    e.preventDefault();
+    const txt = (e.clipboardData.getData('text') || '').replace(/[^0-9.]/g, '');
+    document.execCommand('insertText', false, txt);
+  });
+  resultsPanel.addEventListener('keydown', (e) => {
+    const cell = e.target.closest && e.target.closest('[contenteditable="true"]');
+    if (!cell || e.key !== 'Enter') return;
+    e.preventDefault();
+    const cells = [...resultsPanel.querySelectorAll('[contenteditable="true"]')];
+    const next = cells[cells.indexOf(cell) + 1];
+    if (next) {
+      next.focus();
+      const sel = window.getSelection(), r = document.createRange();
+      r.selectNodeContents(next); sel.removeAllRanges(); sel.addRange(r);
+    } else cell.blur();
+  });
 
-    const mysteryObjects = [...mysteryResultsBody.querySelectorAll('tr')].map(row => {
-      const obj = objects.find(o => o.data.isMystery && `row-${o.data.id}` === row.id);
-      return {
-        object: label(row),
-        mass_g: cell(row, 'mass'),
-        volume_mL: cell(row, 'volume'),
-        density_g_per_mL: cell(row, 'density'),
-        student_identification: row.querySelector('[data-col="identification"]')?.value || '',
-        actual_material: obj ? obj.data.answerId : '',
-        correct: row.classList.contains('is-correct')
-      };
-    });
-
-    const correctCount = mysteryObjects.filter(m => m.correct).length;
-    return {
-      score: score,
-      difficulty: ['', 'Level 1 - Beginner', 'Level 2 - Intermediate', 'Level 3 - Advanced', 'Challenge Mode'][currentDifficulty],
-      summary: `${correctCount} of ${mysteryObjects.length} mystery objects correctly identified`,
-      knownMaterials,
-      mysteryObjects
-    };
-  }
-
-  function handleSubmitToAssignment() {
-    checkAnswers(); // refresh score and per-row correctness before sending
-    submitSimulation(buildSimData());
-    const status = document.getElementById('submit-status');
-    status.textContent = `Submitted (Score: ${score}%)`;
-    status.className = 'text-sm mt-2 text-center text-green-600 font-semibold';
-  }
-
-  // Import/Export helpers
-  function collectCurrentTableData() {
-    const data = {};
-    document.querySelectorAll('#known-results-body tr, #mystery-results-body tr').forEach(row => {
-      const rowId = row.id;
-      if (!rowId) return;
-      data[rowId] = {};
-      const massCell = row.querySelector('[data-col="mass"]');
-      const volumeCell = row.querySelector('[data-col="volume"]');
-      const densityCell = row.querySelector('[data-col="density"]');
-      const idSelect = row.querySelector('[data-col="identification"]');
-      if (massCell) data[rowId].mass = massCell.textContent;
-      if (volumeCell) data[rowId].volume = volumeCell.textContent;
-      if (densityCell) data[rowId].density = densityCell.textContent;
-      if (idSelect) data[rowId].identification = idSelect.value;
-    });
-    return data;
-  }
-
-  async function handleExport() {
-    let studentName = prompt("Please enter your first name to include in the report:", "");
-    if (studentName === null || studentName.trim() === "") { alert("Export cancelled. You must provide a name."); return; }
-    studentName = studentName.trim();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const existingDataParam = urlParams.get('data');
-    let history = [];
-
-    if (existingDataParam) {
-      try {
-        const binaryString = atob(existingDataParam);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
-        const jsonString = pako.inflate(bytes, { to: 'string' });
-        const prevData = JSON.parse(jsonString);
-        history = prevData.history || [];
-        if(prevData.current) history.push(prevData.current);
-      } catch(e) {
-        console.warn("Could not parse previous submission data. Starting fresh history.");
-      }
-    }
-
-    const currentTableData = collectCurrentTableData();
-    const dataToSave = {
-      history: history,
-      current: { name: studentName, timestamp: new Date().toISOString(), difficulty: currentDifficulty, score: score, sessionData: currentTableData }
-    };
-
-    try {
-      const jsonString = JSON.stringify(dataToSave);
-      const compressed = pako.deflate(jsonString);
-      let binary = ''; const len = compressed.byteLength;
-      for (let i = 0; i < len; i++) binary += String.fromCharCode(compressed[i]);
-      const encodedData = btoa(binary);
-      const baseUrl = 'https://custom.scienceclass.rocks/densitySIM/density.html';
-      const url = new URL(baseUrl); url.searchParams.set('data', encodedData);
-      const exportLink = document.getElementById('export-link'); exportLink.value = url.href;
-      document.getElementById('export-modal').style.display = 'flex';
-    } catch (error) {
-      console.error("Failed to export data:", error);
-      alert("An error occurred while trying to generate the link.");
-    }
-  }
-
-  async function handleImport() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const data = urlParams.get('data'); if (!data) return false;
-
-    try {
-      const binaryString = atob(data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-      const jsonString = pako.inflate(bytes, { to: 'string' });
-      const loadedDataWrapper = JSON.parse(jsonString);
-      if (!loadedDataWrapper.current) throw new Error("Invalid data structure.");
-
-      const loadedData = loadedDataWrapper.current;
-      const history = loadedDataWrapper.history || [];
-      const allSubmissions = [...history, loadedData];
-
-      const submissionInfoDiv = document.getElementById('submission-info');
-      const submissionList = document.getElementById('submission-list');
-      submissionList.innerHTML = '';
-      allSubmissions.forEach((submission, index) => {
-        const date = new Date(submission.timestamp);
-        const entry = document.createElement('div');
-        entry.className = (index < allSubmissions.length - 1 ? 'border-b border-indigo-200 pb-2' : '');
-        entry.innerHTML = `<strong>${submission.name}</strong> submitted on <strong>${date.toLocaleString()}</strong> (Score: ${submission.score}%)`;
-        submissionList.appendChild(entry);
-      });
-      submissionInfoDiv.classList.remove('hidden');
-      
-      difficultySelect.value = loadedData.difficulty;
-      await init(loadedData);
-      restoreTableData(loadedData.sessionData);
-      
-      document.querySelectorAll('[contenteditable="true"]').forEach(el => el.contentEditable = false);
-      document.querySelectorAll('select').forEach(el => el.disabled = true);
-      checkAnswersBtn.textContent = "View Results";
-      checkAnswers();
-      exportBtn.disabled = false;
-      exportBtn.textContent = '📤 Forward / Re-Share';
-      resetBtn.disabled = true;
-      resetBtn.style.opacity = '0.5';
-      submitAssignmentBtn.disabled = true;
-      submitAssignmentBtn.style.opacity = '0.5';
-
-      return true;
-    } catch (error) {
-      console.error("Failed to import data:", error);
-      alert("The provided link is invalid or corrupted. Starting a new session.");
-      window.history.replaceState({}, document.title, window.location.pathname);
-      return false;
-    }
-  }
-
-  // Layout
+  // ===== Layout =====
   function createLabLayout() {
     labArea.innerHTML = '';
     const controlsContainer = document.createElement('div');
@@ -520,11 +559,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const scaleWrapper = document.createElement('div');
     scaleWrapper.className = 'flex flex-col items-center relative';
-    scaleEl = createLabElement('scale', 
+    scaleEl = createLabElement('scale',
       `<div class="absolute bottom-0 w-full h-8 bg-gray-600 rounded-b-lg"></div>
        <div class="absolute bottom-8 w-5/6 h-12 bg-gray-500 -skew-x-12 left-0 rounded-tl-md"></div>
        <div class="absolute bottom-8 w-5/6 h-12 bg-gray-500 skew-x-12 right-0 rounded-tr-md"></div>
-       <div id="scale-readout" class="absolute bottom-9 bg-gray-800 text-cyan-300 font-mono text-3xl w-40 h-12 flex items-center justify-center rounded-lg shadow-inner border-2 border-cyan-600">0.00</div>
+       <div id="scale-readout" title="Click to insert this number in the calculator" class="absolute bottom-9 bg-gray-800 text-cyan-300 font-mono text-3xl w-40 h-12 flex items-center justify-center rounded-lg shadow-inner border-2 border-cyan-600">0.00</div>
        <div id="scale-platform" class="absolute top-0 w-44 h-4 bg-gray-400 rounded-t-md border-b-2 border-gray-500"></div>`, 'relative w-56 h-24');
     scaleWrapper.append(scaleEl);
 
@@ -538,6 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     beakerEl = createLabElement('beaker', '<div id="water" class="water"><div class="water-surface"></div></div><div class="beaker-markings"><span data-label="50"></span><span data-label="100"></span><span data-label="150"></span><span data-label="200"></span><span data-label="250"></span><span data-label="300"></span></div>', 'beaker');
     waterEl = beakerEl.querySelector('#water');
     const volumeReadoutEl = createLabElement('volume-readout-bg', '<span id="volume-readout">100.0</span> mL', 'bg-gray-800 text-white font-mono text-2xl p-3 rounded-lg text-center shadow-md mb-4');
+    volumeReadoutEl.title = 'Click to insert this number in the calculator';
     beakerAndSlider.append(initialWaterSlider, beakerEl);
     beakerWrapper.append(beakerAndSlider, volumeReadoutEl);
 
@@ -545,48 +585,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     labArea.append(controlsContainer, floorContainer, overflowWarning, measurementHint);
   }
 
-  async function init(loadedData = null) {
+  function init() {
     createLabLayout();
     objects = [];
-    sessionData = loadedData ? loadedData.sessionData : {};
+    runAttempts = [];
+    runId++;
+    runStartedAt = Date.now();
+    lastAttemptAt = null;
     knownObjectContainer.innerHTML = '';
     mysteryObjectContainer.innerHTML = '';
     knownResultsBody.innerHTML = '';
     mysteryResultsBody.innerHTML = '';
-    score = loadedData ? loadedData.score : 0;
-    document.getElementById('score-display').classList.add('hidden');
+    scoreDisplay.classList.add('hidden');
+    measurementHint.textContent = '💡 Scale = mass. Beaker = volume. Floating? Hold it under the water!';
 
     currentDifficulty = parseInt(difficultySelect.value);
     const cfg = DIFFICULTY_CONFIG[currentDifficulty];
 
-    // Known list for this level
     const selectedKnown = cfg.knownMaterials.map(id => KNOWN_MATERIALS_REPO.find(m => m.id === id)).filter(Boolean);
-
-    // Render known objects + rows
     selectedKnown.forEach(mat => addObjectToSim(mat, false));
 
-    // Build mystery list from known list, random unique picks
     const mysteryMaterials = pickRandomUnique(selectedKnown, cfg.mysteryCount);
     const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     mysteryMaterials.forEach((mat, idx) => {
       const style = MYSTERY_STYLE_POOL[idx % MYSTERY_STYLE_POOL.length];
-      const mystery = {
-        id: labels[idx],
-        answerId: mat.id,
-        color: style.color,
-        shape: style.shape,
-        size: style.size
-      };
-      addObjectToSim(mystery, true);
+      addObjectToSim({ id: labels[idx], answerId: mat.id, color: style.color, shape: style.shape, size: style.size }, true);
     });
 
-    // Reset controls
     liquidDensity = 1.0; initialWaterLevel = 100;
     document.getElementById('liquid-density-value').textContent = '1.00';
     liquidDensitySlider.value = 1.0; initialWaterSlider.value = 100;
     updateWaterLevel(0);
-    document.getElementById('scale-readout').textContent = '0.00';
+    lastStableScaleMass = 0;
+    updateScaleReadout();
     addEventListeners();
+    refreshLevelOptions();
+    updateSubmitStatus();
   }
 
   function pickRandomUnique(arr, count) {
@@ -610,41 +644,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     const trueMass = baseMaterial.density * trueVolume;
     const measurementErrorMass = errorFactor > 0 ? (1 + (Math.random() - 0.5) * errorFactor) : 1;
     const measurementErrorVolume = errorFactor > 0 ? (1 + (Math.random() - 0.5) * errorFactor) : 1;
-    const measuredMass = trueMass * measurementErrorMass;
-    const measuredVolume = trueVolume * measurementErrorVolume;
 
     const name = baseData.name || baseData.id;
-    const instanceData = { 
-      ...baseData, 
-      mass: measuredMass,
-      volume: measuredVolume,
+    const instanceData = {
+      ...baseData,
+      mass: trueMass * measurementErrorMass,
+      volume: trueVolume * measurementErrorVolume,
       trueDensity: baseMaterial.density,
-      name, isMystery 
+      name, isMystery
     };
 
-    const objEl = createLabElement(`obj-${instanceData.id}`, 
-      `<span class="font-bold ${isMystery ? 'text-xl' : 'text-sm'} text-slate-800 pointer-events-none">${isMystery ? instanceData.id : name}</span>`, 
+    const objEl = createLabElement(`obj-${instanceData.id}`,
+      `<span class="font-bold ${isMystery ? 'text-xl' : 'text-sm'} text-slate-800 pointer-events-none">${isMystery ? instanceData.id : name}</span>`,
       `lab-object grab shadow-md ${instanceData.color || 'bg-slate-200'} ${instanceData.shape || 'rounded-md'} ${instanceData.size || 'w-10 h-10'}`);
-    const container = isMystery ? mysteryObjectContainer : knownObjectContainer;
-    container.appendChild(objEl);
+    (isMystery ? mysteryObjectContainer : knownObjectContainer).appendChild(objEl);
 
     objects.push({
       el: objEl, data: instanceData, x: 0, y: 0, vx: 0, vy: 0,
       isDragging: false, isOnScale: false, isInBeaker: false, isInLab: false,
-      // scale latch state
-      scaleLatched: false, scaleOffFrames: 0, scaleStableFrames: 0
+      scaleLatched: false, scaleOffFrames: 0, scaleStableFrames: 0,
+      // attempt + measurement tracking
+      track: { attempts: 0, correct: false, credit: 0, lastKey: '', lastWrongAt: 0, lastFeedback: '', weighed: false, submerged: false }
     });
 
     const options = '<option value="">Select...</option>' + KNOWN_MATERIALS_REPO.map(m => `<option value="${m.id}">${m.name || m.id}</option>`).join('');
-    const row = createLabElement(`row-${instanceData.id}`, 
+    const mysteryCells = isMystery
+      ? `<td class="p-2"><select data-col="identification" class="w-full bg-white border border-slate-300 rounded-md p-1 text-xs">${options}</select></td>
+         <td class="p-2 text-center" data-col="result">
+           <button class="check-row-btn bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1 px-2 rounded-md">Check</button>
+           <div class="result-msg text-xs mt-1"></div>
+           <div class="try-count text-[11px] text-slate-500"></div>
+         </td>` : '';
+    const row = createLabElement(`row-${instanceData.id}`,
       `<td class="p-2 font-bold">${isMystery ? `Object ${instanceData.id}` : name}</td>
-       <td class="p-2" contenteditable="true" data-col="mass"></td>
-       <td class="p-2" contenteditable="true" data-col="volume"></td>
-       <td class="p-2" contenteditable="true" data-col="density"></td>
-       ${isMystery ? `<td class="p-2"><select data-col="identification" class="w-full bg-white border border-slate-300 rounded-md p-1 text-xs">${options}</select></td><td class="p-2 text-center" data-col="result"></td>` : ''}`,
+       <td class="p-2" contenteditable="true" inputmode="decimal" data-col="mass"></td>
+       <td class="p-2" contenteditable="true" inputmode="decimal" data-col="volume"></td>
+       <td class="p-2" contenteditable="true" inputmode="decimal" data-col="density"></td>
+       ${mysteryCells}`,
       'border-b', 'tr');
-    const tableBody = isMystery ? mysteryResultsBody : knownResultsBody;
-    tableBody.appendChild(row);
+    (isMystery ? mysteryResultsBody : knownResultsBody).appendChild(row);
   }
 
   function addEventListeners() {
@@ -658,61 +696,293 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function checkAnswers() {
-    const rows = mysteryResultsBody.querySelectorAll('tr');
-    const total = rows.length;
-    if (!total) return;
+  // ===== Checking answers (per mystery object, with attempt tracking) =====
+  const cellText = (row, col) => (row.querySelector(`[data-col="${col}"]`)?.textContent || '').trim();
+  const relErr = (a, b) => Math.abs(a - b) / Math.abs(b);
 
-    const scoreDisplay = document.getElementById('score-display');
-    scoreDisplay.classList.remove('hidden');
+  function setRowMessage(row, text, cls) {
+    const el = row.querySelector('.result-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.className = `result-msg text-xs mt-1 ${cls}`;
+  }
 
-    let correct = 0;
-    rows.forEach(row => {
-      if (row.classList.contains('is-correct')) { correct++; return; }
+  function checkMysteryRow(row) {
+    const obj = objects.find(o => o.data.isMystery && `row-${o.data.id}` === row.id);
+    if (!obj || obj.track.correct) return;
+    const t = obj.track;
+    const now = Date.now();
 
-      const densityCell = row.querySelector('[data-col="density"]');
-      const idSelect = row.querySelector('[data-col="identification"]');
-      const resultCell = row.querySelector('[data-col="result"]');
-      const objId = row.querySelector('td').textContent.replace('Object ', '').trim();
-      
-      const userDensity = parseFloat(densityCell.textContent);
-      const userId = idSelect.value;
-      const mysteryObj = objects.find(o => o.data.isMystery && o.data.id === objId);
-      if (!mysteryObj) return;
+    if (t.lastWrongAt && now - t.lastWrongAt < ATTEMPT_COOLDOWN_MS) {
+      const secs = Math.ceil((ATTEMPT_COOLDOWN_MS - (now - t.lastWrongAt)) / 1000);
+      setRowMessage(row, `Re-check your work before trying again (${secs}s).`, 'text-amber-600');
+      return;
+    }
 
-      const isComplete = !isNaN(userDensity) && userId;
-      if (!isComplete) {
-        resultCell.innerHTML = '<span class="text-gray-400">Incomplete</span>';
-      } else {
-        const trueDensity = mysteryObj.data.trueDensity;
-        const answerId = mysteryObj.data.answerId;
-        const isDensityCorrect = Math.abs((userDensity - trueDensity) / trueDensity) * 100 < 5;
-        const isIdCorrect = userId === answerId;
+    const mass = parseFloat(cellText(row, 'mass'));
+    const volume = parseFloat(cellText(row, 'volume'));
+    const density = parseFloat(cellText(row, 'density'));
+    const idSelect = row.querySelector('[data-col="identification"]');
+    const id = idSelect.value;
+    if ([mass, volume, density].some(isNaN) || !id) {
+      setRowMessage(row, 'Fill in mass, volume, density, and identification first.', 'text-amber-600');
+      return;
+    }
+    const key = [mass, volume, density, id].join('|');
+    if (key === t.lastKey) {
+      setRowMessage(row, 'Same answer as your last try. Re-measure or recalculate first.', 'text-amber-600');
+      return;
+    }
+    t.lastKey = key;
+    t.attempts++;
 
-        if (isDensityCorrect && isIdCorrect) {
-          resultCell.innerHTML = '<span class="feedback-icon text-green-600">✓ Correct!</span>';
-          row.classList.add('is-correct');
-          densityCell.contentEditable = false;
-          idSelect.disabled = true;
-          row.style.backgroundColor = '#f0fff4';
-          correct++;
-        } else {
-          const feedback = [];
-          if (!isDensityCorrect) feedback.push("Density wrong");
-          if (!isIdCorrect) feedback.push("ID wrong");
-          resultCell.innerHTML = `<span class="feedback-icon text-red-500">✗ ${feedback.join(', ')}</span>`;
-        }
-      }
+    const own = volume > 0 ? mass / volume : NaN;
+    const massOk = relErr(mass, obj.data.mass) <= TOLERANCE;
+    const volOk = relErr(volume, obj.data.volume) <= TOLERANCE;
+    const calcOk = isFinite(own) && own > 0 && relErr(density, own) <= TOLERANCE;
+    const densityOk = relErr(density, obj.data.trueDensity) <= TOLERANCE;
+    const idOk = id === obj.data.answerId;
+    const correct = densityOk && idOk;
+
+    let code = 'correct', hint = '';
+    if (!correct) {
+      if (!massOk) { code = 'mass_reading'; hint = 'Check your mass reading. Was only this object on the scale?'; }
+      else if (!volOk) { code = 'volume_reading'; hint = 'Check your volume: final level − starting level. Floating objects must be held under water.'; }
+      else if (!calcOk) { code = 'density_calculation'; hint = "Your density doesn't match your mass ÷ volume. Recalculate."; }
+      else if (densityOk && !idOk) { code = 'wrong_material'; hint = 'Your density is right! Compare it to the known materials.'; }
+      else { code = 'density_mismatch'; hint = 'Re-measure and recalculate your density.'; }
+    }
+    t.lastFeedback = code;
+    lastAttemptAt = now;
+
+    runAttempts.push({
+      level: currentDifficulty,
+      object: obj.data.id,
+      attempt: t.attempts,
+      mass_entered_g: mass,
+      volume_entered_mL: volume,
+      density_entered_g_per_mL: density,
+      material_chosen: id,
+      mass_reading_ok: massOk ? 'yes' : 'no',
+      volume_reading_ok: volOk ? 'yes' : 'no',
+      density_matches_own_mass_and_volume: calcOk ? 'yes' : 'no',
+      density_ok: densityOk ? 'yes' : 'no',
+      material_ok: idOk ? 'yes' : 'no',
+      result: correct ? 'correct' : 'incorrect',
+      feedback_code: code,
+      seconds_into_level: Math.round((now - runStartedAt) / 1000)
     });
 
-    score = Math.round((correct / total) * 100);
-    scoreDisplay.textContent = `Score: ${score}%`;
-    if (correct === total && total > 0) {
-      scoreDisplay.innerHTML += ' <span class="text-green-600 font-bold">🎉 Complete!</span>';
+    if (correct) {
+      t.correct = true;
+      t.credit = ATTEMPT_CREDIT[Math.min(t.attempts, ATTEMPT_CREDIT.length) - 1];
+      row.querySelectorAll('[contenteditable="true"]').forEach(c => c.contentEditable = 'false');
+      idSelect.disabled = true;
+      row.style.backgroundColor = '#f0fff4';
+      row.classList.add('is-correct');
+      row.querySelector('.check-row-btn')?.classList.add('hidden');
+      setRowMessage(row, '✓ Correct!', 'text-green-600 font-bold feedback-icon');
+    } else {
+      t.lastWrongAt = now;
+      setRowMessage(row, `✗ ${hint}`, 'text-red-500');
+    }
+    row.querySelector('.try-count').textContent = `Tries: ${t.attempts}`;
+
+    unsubmittedProgress = true;
+    updateScoreDisplay();
+    refreshLevelOptions();
+    updateSubmitStatus();
+  }
+
+  function computeRunStats() {
+    const my = objects.filter(o => o.data.isMystery);
+    const total = my.length;
+    const correct = my.filter(o => o.track.correct).length;
+    const attempts = my.reduce((s, o) => s + o.track.attempts, 0);
+    const credit = my.reduce((s, o) => s + (o.track.correct ? o.track.credit : 0), 0);
+    const firstTry = my.filter(o => o.track.correct && o.track.attempts === 1).length;
+    return { total, correct, attempts, firstTry, score: total ? Math.round(credit / total * 100) : 0, complete: total > 0 && correct === total };
+  }
+
+  function updateScoreDisplay() {
+    const s = computeRunStats();
+    if (!s.attempts) { scoreDisplay.classList.add('hidden'); return; }
+    scoreDisplay.classList.remove('hidden');
+    scoreDisplay.innerHTML = `Level score: ${s.score}%<br><span class="font-normal text-xs text-slate-600">${s.correct}/${s.total} correct · ${s.attempts} attempt${s.attempts === 1 ? '' : 's'}</span>` +
+      (s.complete ? '<br><span class="text-green-600 text-xs">🎉 Level complete! Submit your results.</span>' : '');
+  }
+
+  // ===== Level snapshots (one result per level, never overwritten by other levels) =====
+  function snapshotLevel() {
+    if (!runAttempts.length) return null;
+    const s = computeRunStats();
+    const mystery = objects.filter(o => o.data.isMystery).map(o => {
+      const row = document.getElementById(`row-${o.data.id}`);
+      const t = o.track;
+      const reasons = [];
+      if (t.attempts >= REVIEW_ATTEMPT_THRESHOLD) reasons.push(`${t.attempts} attempts`);
+      if (t.attempts > 0 && !t.weighed) reasons.push('never weighed on scale');
+      if (t.attempts > 0 && !t.submerged) reasons.push('never fully submerged');
+      return {
+        object: o.data.id,
+        status: t.correct ? 'correct' : (t.attempts ? 'not_solved' : 'not_attempted'),
+        attempts: t.attempts,
+        correct_on_first_try: (t.correct && t.attempts === 1) ? 'yes' : 'no',
+        credit_pct: Math.round((t.correct ? t.credit : 0) * 100),
+        student_mass_g: row ? cellText(row, 'mass') : '',
+        student_volume_mL: row ? cellText(row, 'volume') : '',
+        student_density_g_per_mL: row ? cellText(row, 'density') : '',
+        student_material: row ? (row.querySelector('[data-col="identification"]')?.value || '') : '',
+        actual_material: o.data.answerId,
+        actual_density_g_per_mL: o.data.trueDensity,
+        last_feedback_code: t.lastFeedback || '',
+        weighed_on_scale: t.weighed ? 'yes' : 'no',
+        fully_submerged_in_beaker: t.submerged ? 'yes' : 'no',
+        review_flag: reasons.join('; ')
+      };
+    });
+    const flag = (txt, actual) => {
+      const v = parseFloat(txt);
+      return isNaN(v) ? 'blank' : (relErr(v, actual) <= TOLERANCE ? 'yes' : 'no');
+    };
+    const known = objects.filter(o => !o.data.isMystery).map(o => {
+      const row = document.getElementById(`row-${o.data.id}`);
+      const m = row ? cellText(row, 'mass') : '', v = row ? cellText(row, 'volume') : '', d = row ? cellText(row, 'density') : '';
+      return {
+        material: o.data.name,
+        student_mass_g: m, student_volume_mL: v, student_density_g_per_mL: d,
+        mass_reading_ok: flag(m, o.data.mass),
+        volume_reading_ok: flag(v, o.data.volume),
+        density_ok: flag(d, o.data.trueDensity),
+        weighed_on_scale: o.track.weighed ? 'yes' : 'no',
+        fully_submerged_in_beaker: o.track.submerged ? 'yes' : 'no'
+      };
+    });
+    (levelRunIds[currentDifficulty] = levelRunIds[currentDifficulty] || new Set()).add(runId);
+    return {
+      level: currentDifficulty,
+      level_name: LEVEL_NAMES[currentDifficulty],
+      status: s.complete ? 'completed' : 'in_progress',
+      score: s.score,
+      objects_correct: s.correct,
+      objects_total: s.total,
+      total_attempts: s.attempts,
+      first_try_correct: s.firstTry,
+      minutes_elapsed: lastAttemptAt ? Math.round((lastAttemptAt - runStartedAt) / 6000) / 10 : 0,
+      runs_attempted: levelRunIds[currentDifficulty].size,
+      mystery, known,
+      attempts: runAttempts.slice()
+    };
+  }
+
+  function storeCurrentLevel() {
+    const snap = snapshotLevel();
+    if (snap) levelResults[currentDifficulty] = snap;
+  }
+
+  function collectLevels() {
+    const levels = { ...levelResults };
+    const cur = snapshotLevel();
+    if (cur) levels[currentDifficulty] = cur;
+    return levels;
+  }
+
+  function refreshLevelOptions() {
+    const levels = collectLevels();
+    [...difficultySelect.options].forEach(opt => {
+      const n = Number(opt.value), L = levels[n];
+      opt.textContent = LEVEL_NAMES[n] + (L ? `  —  ${L.score}%${L.status === 'completed' ? ' ✓' : ' (in progress)'}` : '');
+    });
+  }
+
+  // ===== Submission =====
+  function buildSimData(levels) {
+    const nums = Object.keys(levels).map(Number).sort((a, b) => a - b);
+    const level_summary = [], mystery_results = [], known_measurements = [];
+    let attempt_log = [];
+    const issueCounts = {};
+    let totalAttempts = 0, totalMinutes = 0, flagged = 0;
+    const flaggedNames = [];
+
+    nums.forEach(n => {
+      const L = levels[n];
+      const flaggedHere = L.mystery.filter(m => m.review_flag);
+      level_summary.push({
+        level: n, level_name: L.level_name, status: L.status, score_pct: L.score,
+        objects_correct: L.objects_correct, objects_total: L.objects_total,
+        total_attempts: L.total_attempts, first_try_correct: L.first_try_correct,
+        avg_attempts_per_object: L.objects_total ? Math.round(L.total_attempts / L.objects_total * 10) / 10 : 0,
+        objects_flagged_for_review: flaggedHere.length,
+        minutes_elapsed: L.minutes_elapsed, runs_attempted: L.runs_attempted
+      });
+      L.mystery.forEach(m => mystery_results.push({ level: n, ...m }));
+      L.known.forEach(k => known_measurements.push({ level: n, ...k }));
+      attempt_log = attempt_log.concat(L.attempts);
+      L.attempts.forEach(a => { if (a.result === 'incorrect') issueCounts[a.feedback_code] = (issueCounts[a.feedback_code] || 0) + 1; });
+      flaggedHere.forEach(m => flaggedNames.push(`Level ${n} Object ${m.object} (${m.review_flag})`));
+      totalAttempts += L.total_attempts; totalMinutes += L.minutes_elapsed; flagged += flaggedHere.length;
+    });
+
+    const completed = nums.filter(n => levels[n].status === 'completed');
+    const avg = nums.length ? Math.round(nums.reduce((s, n) => s + levels[n].score, 0) / nums.length) : 0;
+
+    const levelLines = nums.map(n => {
+      const L = levels[n];
+      return `${L.level_name}: ${L.status === 'completed' ? 'complete' : 'in progress'}, ${L.score}% (${L.objects_correct}/${L.objects_total} correct, ${L.total_attempts} attempts, ${L.first_try_correct} first-try)`;
+    });
+    const issues = Object.entries(issueCounts).map(([k, v]) => `${v} ${ISSUE_LABELS[k] || k}`);
+    let summary = levelLines.join('. ') + '.';
+    if (issues.length) summary += ` Incorrect attempts: ${issues.join(', ')}.`;
+    if (flaggedNames.length) summary += ` Review: ${flaggedNames.join('; ')}.`;
+
+    const data = {
+      summary,
+      overall_score_pct: avg,
+      levels_attempted: nums.join(', '),
+      levels_completed: completed.length ? completed.join(', ') : 'none',
+      total_attempts: totalAttempts,
+      total_minutes_elapsed: Math.round(totalMinutes * 10) / 10,
+      objects_flagged_for_review: flagged,
+      submitted_at: new Date().toISOString()
+    };
+    nums.forEach(n => { data[`level_${n}_score_pct`] = levels[n].score; });
+    data.level_summary = level_summary;
+    data.mystery_results = mystery_results;
+    data.attempt_log = attempt_log.slice(0, MAX_ATTEMPT_LOG_ROWS);
+    data.known_measurements = known_measurements;
+    return data;
+  }
+
+  function handleSubmitToAssignment() {
+    const levels = collectLevels();
+    const nums = Object.keys(levels);
+    if (!nums.length) {
+      submitStatus.textContent = 'Press Check on at least one mystery object before submitting.';
+      submitStatus.className = 'text-sm mt-2 text-center text-amber-600 font-semibold';
+      return;
+    }
+    submitSimulation(buildSimData(levels));
+    hasSubmitted = true;
+    unsubmittedProgress = false;
+    lastSubmittedAt = new Date();
+    updateSubmitStatus();
+  }
+
+  function updateSubmitStatus() {
+    const hasProgress = runAttempts.length > 0 || Object.keys(levelResults).length > 0;
+    if (!hasProgress && !hasSubmitted) { submitStatus.className = 'hidden'; return; }
+    if (unsubmittedProgress) {
+      submitStatus.textContent = hasSubmitted ? '⚠ New progress has not been submitted yet.' : '⚠ Your progress has not been submitted yet.';
+      submitStatus.className = 'text-sm mt-2 text-center text-amber-600 font-semibold';
+      submitAssignmentBtn.classList.add('pulse');
+    } else if (hasSubmitted) {
+      submitStatus.textContent = `✓ Submitted at ${lastSubmittedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      submitStatus.className = 'text-sm mt-2 text-center text-green-600 font-semibold';
+      submitAssignmentBtn.classList.remove('pulse');
     }
   }
 
-  // Dragging
+  // ===== Dragging =====
   function startDrag(e) {
     const target = e.target.closest('.lab-object');
     if (!target) return;
@@ -723,7 +993,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     draggedObject.isDragging = true;
     draggedObject.el.classList.add('grabbing');
-    
+
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
     const labRect = labArea.getBoundingClientRect();
@@ -738,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       draggedObject.el.style.left = `${draggedObject.x}px`;
       draggedObject.el.style.top = `${draggedObject.y}px`;
     }
-    
+
     draggedObject.offsetX = clientX - (labRect.left + draggedObject.x);
     draggedObject.offsetY = clientY - (labRect.top + draggedObject.y);
     draggedObject.vx = 0;
@@ -753,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function drag(e) {
     if (!draggedObject) return;
     e.preventDefault();
-    
+
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
     const labRect = labArea.getBoundingClientRect();
@@ -770,14 +1040,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     draggedObject.isDragging = false;
     draggedObject.el.classList.remove('grabbing');
-    
+
     const beakerRect = beakerEl.getBoundingClientRect();
     const scaleRect = scaleEl.getBoundingClientRect();
-    
+
     const objRect = draggedObject.el.getBoundingClientRect();
     const objCenterX = objRect.left + objRect.width / 2;
     const objCenterY = objRect.top + objRect.height / 2;
-    
+
     if (objCenterY > scaleRect.top && objCenterX > scaleRect.left && objCenterX < scaleRect.right) {
       draggedObject.isOnScale = true;
       draggedObject.scaleLatched = true;
@@ -794,7 +1064,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       draggedObject.scaleLatched = false;
     }
 
-    // Return to shelf if dropped over shelf
     const shelves = [knownObjectContainer, mysteryObjectContainer];
     for (const shelf of shelves) {
       const shelfRect = shelf.getBoundingClientRect();
@@ -803,11 +1072,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         break;
       }
     }
-    
+
     measurementHint.classList.add('hidden');
     draggedObject = null;
   }
-  
+
   function returnToShelf(obj) {
     obj.isInLab = false;
     obj.isOnScale = false;
@@ -818,41 +1087,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     obj.el.style.top = '';
     obj.el.style.transform = '';
     obj.x = 0; obj.y = 0; obj.vx = 0; obj.vy = 0;
-    
-    const container = obj.data.isMystery ? mysteryObjectContainer : knownObjectContainer;
-    container.appendChild(obj.el);
+
+    (obj.data.isMystery ? mysteryObjectContainer : knownObjectContainer).appendChild(obj.el);
     updateScaleReadout();
     updateWaterLevel(0);
   }
 
-  // Main loop
+  // ===== Main loop =====
   function gameLoop() {
     const labRect = labArea.getBoundingClientRect();
     const scalePlatform = document.getElementById('scale-platform').getBoundingClientRect();
     const beakerRect = beakerEl.getBoundingClientRect();
 
-    // Sum displaced volume from all objects in the beaker
     let totalDisplacedVolume = 0;
 
     objects.forEach(obj => {
       if (!obj.isInLab) return;
 
       if (obj.isDragging) {
-        // Update beaker membership while dragging (slightly expanded zone)
         const objRect = obj.el.getBoundingClientRect();
         obj.isInBeaker = (objRect.right > beakerRect.left - 4) && (objRect.left < beakerRect.right + 4) && (objRect.bottom > beakerRect.top);
       } else {
-        // Scale latching zone with hysteresis
         handleScaleZone(obj, labRect, scalePlatform);
 
         if (obj.scaleLatched) {
-          // Hard clamp on platform
           obj.vy = 0;
           obj.vx *= 0.85;
-          const platformY = scalePlatform.top - labRect.top - obj.el.offsetHeight;
-          obj.y = platformY;
+          obj.y = scalePlatform.top - labRect.top - obj.el.offsetHeight;
         } else {
-          // Beaker physics if horizontally overlapping
           if (isOverBeakerHoriz(obj, beakerRect)) {
             handleBeakerPhysics(obj, beakerRect, labRect);
           } else {
@@ -860,57 +1122,42 @@ document.addEventListener('DOMContentLoaded', async () => {
             obj.vy += gravity;
           }
 
-          // Integrate motion
           obj.x += obj.vx;
           obj.y += obj.vy;
 
-          // Clamp speeds (global)
           if (obj.vy > maxVyOverall) obj.vy = maxVyOverall;
           if (obj.vy < -maxVyOverall) obj.vy = -maxVyOverall;
 
-          // Secondary clamp for beaker bottom after integration
           if (obj.isInBeaker) {
             const beakerBottomY = beakerRect.bottom - labRect.top - obj.el.offsetHeight;
             if (obj.y > beakerBottomY) { obj.y = beakerBottomY; obj.vy = 0; }
           }
 
-          // Boundaries
           handleBoundaries(obj, labRect);
         }
       }
 
-      // Displacement contribution if in beaker (after potential state updates)
       if (obj.isInBeaker) {
         const objRect = obj.el.getBoundingClientRect();
         const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
         const submergedHeight = Math.max(0, objRect.bottom - waterSurfaceY);
         const submergedRatio = Math.min(1, submergedHeight / objRect.height);
         totalDisplacedVolume += obj.data.volume * submergedRatio;
+        if (submergedRatio >= 0.98) obj.track.submerged = true;
       }
 
-      // Paint
       obj.el.style.left = `${obj.x}px`;
       obj.el.style.top = `${obj.y}px`;
     });
 
-    // Update water level with sum of displaced volumes
     updateWaterLevel(totalDisplacedVolume);
 
-    // Stable cumulative scale readout
-    const stableLatched = objects.filter(
-      o => o.scaleLatched && o.scaleStableFrames >= scaleStableThreshold
-    );
-
+    const stableLatched = objects.filter(o => o.scaleLatched && o.scaleStableFrames >= scaleStableThreshold);
     if (stableLatched.length) {
       lastStableScaleMass = stableLatched.reduce((sum, o) => sum + o.data.mass, 0);
-    } else {
-      // If nothing latched at all, return to zero; if something is latching
-      // but not yet stable, keep prior reading to avoid flicker.
-      if (!objects.some(o => o.scaleLatched)) {
-        lastStableScaleMass = 0;
-      }
+    } else if (!objects.some(o => o.scaleLatched)) {
+      lastStableScaleMass = 0;
     }
-
     updateScaleReadout();
 
     window.animationFrameId = requestAnimationFrame(gameLoop);
@@ -924,19 +1171,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const platformY = scalePlatform.top;
 
     const horizontallyAligned = objRect.right > platformLeft && objRect.left < platformRight;
-    const nearTop = objRect.bottom >= platformYTop && objRect.bottom <= platformY + 16; // small window below too
+    const nearTop = objRect.bottom >= platformYTop && objRect.bottom <= platformY + 16;
 
     if (horizontallyAligned && nearTop && obj.vy >= 0) {
-      // Enter or remain latched
       obj.scaleLatched = true;
       obj.isOnScale = true;
       obj.scaleOffFrames = 0;
       obj.scaleStableFrames++;
-      // Snap to exact platform top
+      if (obj.scaleStableFrames >= scaleStableThreshold) obj.track.weighed = true;
       obj.y = platformY - labRect.top - obj.el.offsetHeight;
       obj.vy = 0;
     } else if (obj.scaleLatched) {
-      // Hysteresis: only release if off-zone for several frames
       obj.scaleOffFrames++;
       if (obj.scaleOffFrames > scaleReleaseFrames) {
         obj.scaleLatched = false;
@@ -953,7 +1198,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function isOverBeakerHoriz(obj, beakerRect) {
     const objRect = obj.el.getBoundingClientRect();
-    // Expanded slightly to avoid rapid toggling
     return (objRect.right > beakerRect.left - 4) && (objRect.left < beakerRect.right + 4) && (objRect.top < beakerRect.bottom);
   }
 
@@ -961,47 +1205,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     const objRect = obj.el.getBoundingClientRect();
     const waterSurfaceY = beakerRect.bottom - waterEl.offsetHeight;
 
-    // Consider inside if overlapping in both axes (with tolerance)
     obj.isInBeaker = !(objRect.right < beakerRect.left + 2 || objRect.left > beakerRect.right - 2 || objRect.bottom < beakerRect.top + 2 || objRect.top > beakerRect.bottom);
 
-    // Walls
     const beakerLeft = beakerRect.left - labRect.left;
     const beakerRight = beakerRect.right - labRect.left - obj.el.offsetWidth;
     if (obj.x < beakerLeft) { obj.x = beakerLeft; obj.vx *= -0.4; }
     if (obj.x > beakerRight) { obj.x = beakerRight; obj.vx *= -0.4; }
 
-    // Bottom (pre-integration guard)
     const beakerBottomY = beakerRect.bottom - labRect.top - obj.el.offsetHeight;
     if (obj.y > beakerBottomY) { obj.y = beakerBottomY; obj.vy = 0; }
 
-    // Submergence
     const submergedHeight = Math.max(0, objRect.bottom - waterSurfaceY);
     const submergedRatio = Math.min(1, submergedHeight / objRect.height);
 
-    // Gravity in water
     obj.vy += gravity;
 
     if (submergedRatio > 0) {
-      // PD control to equilibrium submerged fraction (rho_obj / rho_liquid)
       const eqSub = Math.min(1, obj.data.trueDensity / liquidDensity);
-      const k = 3.0 * gravity;  // spring gain
-      const c = 2.2;            // damping gain
+      const k = 3.0 * gravity;
+      const c = 2.2;
       const error = eqSub - submergedRatio;
       const accel = k * error - c * obj.vy * 0.1;
       obj.vy += accel;
 
-      // In-water drag
       obj.vx *= waterLinearDrag;
       obj.vy *= waterLinearDrag;
 
-      // Extra surface damping for floaters
       if (submergedRatio < 1 && obj.data.trueDensity < liquidDensity) {
         obj.vy *= surfaceDamping;
-        // Limit upward pop near surface
         if (submergedRatio < 0.15 && obj.vy < -maxVyInWater * 0.5) obj.vy = -maxVyInWater * 0.5;
       }
 
-      // Cap in-water vertical speed
       if (obj.vy > maxVyInWater) obj.vy = maxVyInWater;
       if (obj.vy < -maxVyInWater) obj.vy = -maxVyInWater;
     }
@@ -1030,11 +1264,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('volume-readout').textContent = (initialWaterLevel + (totalDisplacedVolume || 0)).toFixed(1);
   }
 
+  // Masses under 1 g (e.g., the air bubble) show 3 decimals so students can calculate accurately
   function updateScaleReadout() {
-    document.getElementById('scale-readout').textContent = lastStableScaleMass.toFixed(2);
+    const m = lastStableScaleMass;
+    document.getElementById('scale-readout').textContent = m > 0 && m < 1 ? m.toFixed(3) : m.toFixed(2);
   }
 
-  // Utilities
   function createLabElement(id, innerHTML, className, type = 'div') {
     const el = document.createElement(type);
     if (id) el.id = id;
@@ -1043,29 +1278,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return el;
   }
 
-  function restoreTableData(data) {
-    if (!data) return;
-    Object.keys(data).forEach(rowId => {
-      const row = document.getElementById(rowId);
-      if (!row) return;
-      const rowData = data[rowId];
-      const massCell = row.querySelector('[data-col="mass"]');
-      if (massCell && rowData.mass) massCell.textContent = rowData.mass;
-      const volumeCell = row.querySelector('[data-col="volume"]');
-      if (volumeCell && rowData.volume) volumeCell.textContent = rowData.volume;
-      const densityCell = row.querySelector('[data-col="density"]');
-      if (densityCell && rowData.density) densityCell.textContent = rowData.density;
-      const idSelect = row.querySelector('[data-col="identification"]');
-      if (idSelect && rowData.identification) idSelect.value = rowData.identification;
-    });
-  }
-
-  // Init
-  (async () => {
-    const imported = await handleImport();
-    if (!imported) await init();
-    gameLoop();
-  })();
+  // ===== Start =====
+  init();
+  gameLoop();
 });
 </script>
 </body>
