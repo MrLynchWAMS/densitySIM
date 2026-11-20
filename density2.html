@@ -159,6 +159,8 @@
           <button id="check-answers-btn" class="flex-1 text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">✓ Check Answers</button>
           <button id="export-btn" class="flex-1 text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📤 Export Results</button>
         </div>
+        <button id="submit-assignment-btn" class="w-full mt-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg transition-transform transform hover:scale-105">📨 Submit to Assignment</button>
+        <p id="submit-status" class="text-sm mt-2 text-center hidden"></p>
       </div>
     </div>
   </div>
@@ -254,6 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const helpBtn = document.getElementById('help-btn');
   const measurementHint = document.getElementById('measurement-hint');
   const exportBtn = document.getElementById('export-btn');
+  const submitAssignmentBtn = document.getElementById('submit-assignment-btn');
 
   let objects = [];
   let draggedObject = null;
@@ -288,6 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   checkAnswersBtn.addEventListener('click', checkAnswers);
   exportBtn.addEventListener('click', handleExport);
+  submitAssignmentBtn.addEventListener('click', handleSubmitToAssignment);
 
   document.getElementById('close-export-modal-btn').addEventListener('click', () => {
     document.getElementById('export-modal').style.display = 'none';
@@ -333,6 +337,57 @@ document.addEventListener('DOMContentLoaded', async () => {
       modal.classList.remove('show');
     }
   });
+
+  // ---- IterātED bridge ----
+  // The parent wrapper handles all database operations. No Firebase/auth code here.
+  function submitSimulation(simData = null) {
+    const message = { action: "SIM_COMPLETE" };
+    if (simData !== null && simData !== undefined) message.simData = simData;
+    const parentOrigin = "https://custom.scienceclass.rocks";
+    window.parent.postMessage(message, parentOrigin);
+  }
+
+  function buildSimData() {
+    const cell = (row, col) => (row.querySelector(`[data-col="${col}"]`)?.textContent || '').trim();
+    const label = (row) => row.querySelector('td').textContent.trim();
+
+    const knownMaterials = [...knownResultsBody.querySelectorAll('tr')].map(row => ({
+      material: label(row),
+      mass_g: cell(row, 'mass'),
+      volume_mL: cell(row, 'volume'),
+      density_g_per_mL: cell(row, 'density')
+    }));
+
+    const mysteryObjects = [...mysteryResultsBody.querySelectorAll('tr')].map(row => {
+      const obj = objects.find(o => o.data.isMystery && `row-${o.data.id}` === row.id);
+      return {
+        object: label(row),
+        mass_g: cell(row, 'mass'),
+        volume_mL: cell(row, 'volume'),
+        density_g_per_mL: cell(row, 'density'),
+        student_identification: row.querySelector('[data-col="identification"]')?.value || '',
+        actual_material: obj ? obj.data.answerId : '',
+        correct: row.classList.contains('is-correct')
+      };
+    });
+
+    const correctCount = mysteryObjects.filter(m => m.correct).length;
+    return {
+      score: score,
+      difficulty: ['', 'Level 1 - Beginner', 'Level 2 - Intermediate', 'Level 3 - Advanced', 'Challenge Mode'][currentDifficulty],
+      summary: `${correctCount} of ${mysteryObjects.length} mystery objects correctly identified`,
+      knownMaterials,
+      mysteryObjects
+    };
+  }
+
+  function handleSubmitToAssignment() {
+    checkAnswers(); // refresh score and per-row correctness before sending
+    submitSimulation(buildSimData());
+    const status = document.getElementById('submit-status');
+    status.textContent = `Submitted (Score: ${score}%)`;
+    status.className = 'text-sm mt-2 text-center text-green-600 font-semibold';
+  }
 
   // Import/Export helpers
   function collectCurrentTableData() {
@@ -438,6 +493,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       exportBtn.textContent = '📤 Forward / Re-Share';
       resetBtn.disabled = true;
       resetBtn.style.opacity = '0.5';
+      submitAssignmentBtn.disabled = true;
+      submitAssignmentBtn.style.opacity = '0.5';
 
       return true;
     } catch (error) {
@@ -839,22 +896,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update water level with sum of displaced volumes
     updateWaterLevel(totalDisplacedVolume);
 
-  // Stable cumulative scale readout
-const stableLatched = objects.filter(
-  o => o.scaleLatched && o.scaleStableFrames >= scaleStableThreshold
-);
+    // Stable cumulative scale readout
+    const stableLatched = objects.filter(
+      o => o.scaleLatched && o.scaleStableFrames >= scaleStableThreshold
+    );
 
-if (stableLatched.length) {
-  lastStableScaleMass = stableLatched.reduce((sum, o) => sum + o.data.mass, 0);
-} else {
-  // If nothing latched at all, return to zero; if something is latching
-  // but not yet stable, keep prior reading to avoid flicker.
-  if (!objects.some(o => o.scaleLatched)) {
-    lastStableScaleMass = 0;
-  }
-}
+    if (stableLatched.length) {
+      lastStableScaleMass = stableLatched.reduce((sum, o) => sum + o.data.mass, 0);
+    } else {
+      // If nothing latched at all, return to zero; if something is latching
+      // but not yet stable, keep prior reading to avoid flicker.
+      if (!objects.some(o => o.scaleLatched)) {
+        lastStableScaleMass = 0;
+      }
+    }
 
-updateScaleReadout();
+    updateScaleReadout();
 
     window.animationFrameId = requestAnimationFrame(gameLoop);
   }
